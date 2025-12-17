@@ -30,7 +30,11 @@ function ModelSelector({ currentModel, onModelChange }) {
 
   const fetchCurrentModel = async () => {
     try {
-      const response = await fetch('/api/models')
+      const headers = {}
+      if (window.authToken) {
+        headers['Authorization'] = `Bearer ${window.authToken}`
+      }
+      const response = await fetch('/api/v1/models', { headers })
       if (response.ok) {
         const data = await response.json()
         if (data.current_model && onModelChange) {
@@ -44,7 +48,11 @@ function ModelSelector({ currentModel, onModelChange }) {
 
   const fetchModels = async () => {
     try {
-      const response = await fetch('/api/models')
+      const headers = {}
+      if (window.authToken) {
+        headers['Authorization'] = `Bearer ${window.authToken}`
+      }
+      const response = await fetch('/api/v1/models', { headers })
       if (response.ok) {
         const data = await response.json()
         setModels(data.models || [])
@@ -61,11 +69,15 @@ function ModelSelector({ currentModel, onModelChange }) {
     setError(null)
 
     try {
-      const response = await fetch('/api/models', {
+      const headers = {
+        'Content-Type': 'application/json',
+      }
+      if (window.authToken) {
+        headers['Authorization'] = `Bearer ${window.authToken}`
+      }
+      const response = await fetch('/api/v1/models', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ model: modelName }),
       })
 

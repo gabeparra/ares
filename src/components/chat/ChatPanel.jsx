@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react'
 import './ChatPanel.css'
 
 function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChange }) {
+  // WebSocket is optional - used for real-time updates (Telegram messages, etc.)
+  // Chat messages use REST API
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -40,8 +42,8 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
           const messageType = data.role === 'user' ? 'user' : 'assistant'
           const source = data.type === 'telegram_message' ? 'telegram' : 'chatgpt'
           const defaultSender = data.role === 'user' 
-            ? (source === 'telegram' ? 'Telegram User' : 'ChatGPT User')
-            : 'Glup'
+            ? (source === 'telegram' ? 'Telegram User' : 'User')
+            : 'ARES'
           setMessages(prev => [...prev, {
             type: messageType,
             content: data.message,
@@ -88,7 +90,7 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if ((!input.trim() && !selectedFile) || !ws || ws.readyState !== WebSocket.OPEN) return
+    if (!input.trim() && !selectedFile) return
 
     let messageContent = input.trim()
     let fileContent = null
@@ -121,12 +123,11 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
     setMessages(prev => [...prev, userMessage])
     setIsTyping(true)
 
-    // Send message with session ID and file content if applicable
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    // Send message via REST API
+    try {
       const messageData = {
-        type: 'chat',
         message: messageContent,
-        session_id: sessionId
+        session_id: sessionId,
       }
 
       if (fileContent) {
@@ -134,7 +135,41 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
         messageData.file_name = selectedFile.name
       }
 
-      ws.send(JSON.stringify(messageData))
+      // Include auth token if available
+      const headers = {
+        'Content-Type': 'application/json',
+      }
+      if (window.authToken) {
+        headers['Authorization'] = `Bearer ${window.authToken}`
+      }
+
+      const response = await fetch('/api/v1/chat', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(messageData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to get response')
+      }
+
+      const data = await response.json()
+      
+      setIsTyping(false)
+      setMessages(prev => [...prev, {
+        type: 'assistant',
+        content: data.response || '',
+        timestamp: new Date(),
+      }])
+    } catch (error) {
+      console.error('Failed to send message:', error)
+      setIsTyping(false)
+      setMessages(prev => [...prev, {
+        type: 'error',
+        content: `Error: ${error.message}`,
+        timestamp: new Date(),
+      }])
     }
 
     setInput('')
@@ -149,7 +184,11 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
     // Load available sessions
     const loadSessions = async () => {
       try {
-        const response = await fetch('/api/sessions?limit=200')
+        const headers = {}
+        if (window.authToken) {
+          headers['Authorization'] = `Bearer ${window.authToken}`
+        }
+        const response = await fetch('/api/v1/sessions?limit=200', { headers })
         if (response.ok) {
           const data = await response.json()
           const ids = (data.sessions || []).map(s => s.session_id)
@@ -165,7 +204,11 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
   useEffect(() => {
     const loadModels = async () => {
       try {
-        const res = await fetch('/api/models')
+        const headers = {}
+        if (window.authToken) {
+          headers['Authorization'] = `Bearer ${window.authToken}`
+        }
+        const res = await fetch('/api/v1/models', { headers })
         if (res.ok) {
           const data = await res.json()
           setAvailableModels(data.models || [])
@@ -180,7 +223,11 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
   useEffect(() => {
     const loadSessionMeta = async () => {
       try {
-        const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`)
+        const headers = {}
+        if (window.authToken) {
+          headers['Authorization'] = `Bearer ${window.authToken}`
+        }
+        const res = await fetch(`/api/v1/sessions/${encodeURIComponent(sessionId)}`, { headers })
         if (res.ok) {
           const data = await res.json()
           setSessionModel(data.model || '')
@@ -197,9 +244,13 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
   const updateSessionModel = async (model) => {
     setSessionModel(model)
     try {
-      await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+      const headers = { 'Content-Type': 'application/json' }
+      if (window.authToken) {
+        headers['Authorization'] = `Bearer ${window.authToken}`
+      }
+      await fetch(`/api/v1/sessions/${encodeURIComponent(sessionId)}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ model: model || null }),
       })
     } catch (err) {
@@ -219,7 +270,11 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
     // Load conversation history when sessionId changes
     const loadHistory = async () => {
       try {
-        const response = await fetch(`/api/conversations?session_id=${sessionId}&limit=50`)
+        const headers = {}
+        if (window.authToken) {
+          headers['Authorization'] = `Bearer ${window.authToken}`
+        }
+        const response = await fetch(`/api/v1/conversations?session_id=${sessionId}&limit=50`, { headers })
         if (response.ok) {
           const data = await response.json()
           if (data.conversations && data.conversations.length > 0) {
@@ -278,7 +333,7 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
   return (
     <div className="panel chat-panel">
       <div className="chat-header">
-        <h2>Chat with Glup</h2>
+        <h2>Chat with ARES</h2>
         <div className="session-selector-container">
           <select
             value={sessionModel}
@@ -323,7 +378,7 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
       <div className="chat-messages">
         {messages.length === 0 ? (
           <div className="empty-state">
-            Start a conversation with Glup...
+            Start a conversation with ARES...
           </div>
         ) : (
           messages.map((msg, idx) => (
@@ -331,10 +386,10 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
               <div className="message-header">
                 <span className="message-sender">
                   {msg.source === 'telegram' 
-                    ? (msg.sender || (msg.type === 'user' ? 'Telegram User' : 'Glup'))
+                    ? (msg.sender || (msg.type === 'user' ? 'Telegram User' : 'ARES'))
                     : msg.source === 'chatgpt'
-                    ? (msg.sender || (msg.type === 'user' ? 'ChatGPT User' : 'Glup'))
-                    : (msg.type === 'user' ? 'You' : msg.type === 'error' ? 'Error' : 'Glup')
+                    ? (msg.sender || (msg.type === 'user' ? 'User' : 'ARES'))
+                    : (msg.type === 'user' ? 'You' : msg.type === 'error' ? 'Error' : 'ARES')
                   }
                   {msg.source === 'telegram' && ' 📱'}
                   {msg.source === 'chatgpt' && ' 🌐'}
@@ -364,7 +419,7 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
         {isTyping && (
           <div className="chat-message assistant typing">
             <div className="message-header">
-              <span className="message-sender">Glup</span>
+              <span className="message-sender">ARES</span>
             </div>
             <div className="typing-indicator">
               <span></span>
@@ -386,7 +441,7 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
             onChange={(e) => setInput(e.target.value)}
             placeholder={selectedFile ? "Add a message about the file..." : "Type your message..."}
             className="chat-input"
-            disabled={!ws || ws.readyState !== WebSocket.OPEN}
+            disabled={isTyping}
           />
           <input
             ref={fileInputRef}
@@ -422,13 +477,13 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
           </div>
         )}
 
-        <button
-          type="submit"
-          className="chat-send-button"
-          disabled={(!input.trim() && !selectedFile) || !ws || ws.readyState !== WebSocket.OPEN}
-        >
-          Send
-        </button>
+          <button
+            type="submit"
+            className="chat-send-button"
+            disabled={(!input.trim() && !selectedFile) || isTyping}
+          >
+            Send
+          </button>
       </form>
     </div>
   )

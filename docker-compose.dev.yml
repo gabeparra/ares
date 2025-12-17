@@ -1,0 +1,27 @@
+version: '3.8'
+
+# Development override for docker-compose.yml
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  backend:
+    volumes:
+      - .:/app
+      - /app/staticfiles
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      - DEBUG=True
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.dev
+    volumes:
+      - ./src:/app/src
+      - ./index.html:/app/index.html
+      - ./vite.config.js:/app/vite.config.js
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    command: npm run dev -- --host
+
