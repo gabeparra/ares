@@ -14,7 +14,11 @@ function ConversationViewer({ sessionId, onClose, onContinueConversation }) {
   const loadConversations = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/conversations?session_id=${sessionId}&limit=100`)
+      const headers = {}
+      if (window.authToken) {
+        headers['Authorization'] = `Bearer ${window.authToken}`
+      }
+      const response = await fetch(`/api/v1/conversations?session_id=${sessionId}&limit=100`, { headers })
       if (response.ok) {
         const data = await response.json()
         setConversations(data.conversations || [])
@@ -74,7 +78,7 @@ function ConversationViewer({ sessionId, onClose, onContinueConversation }) {
             <div key={idx} className={`conv-message ${conv.role}`}>
               <div className="conv-message-header">
                 <span className="conv-role">
-                  {conv.role === 'user' ? '👤 You' : '🤖 Glup'}
+                  {conv.role === 'user' ? '👤 You' : '🤖 ARES'}
                 </span>
                 <span className="conv-time">{formatTime(conv.created_at)}</span>
               </div>

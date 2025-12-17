@@ -13,7 +13,11 @@ function ConversationList({ onSelectSession, selectedSessionId }) {
   const loadSessions = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/sessions?limit=200')
+      const headers = {}
+      if (window.authToken) {
+        headers['Authorization'] = `Bearer ${window.authToken}`
+      }
+      const response = await fetch('/api/v1/sessions?limit=200', { headers })
       if (response.ok) {
         const data = await response.json()
         setSessions(data.sessions || [])
@@ -27,9 +31,13 @@ function ConversationList({ onSelectSession, selectedSessionId }) {
 
   const updateSession = async (sessionId, patch) => {
     try {
-      const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+      const headers = { 'Content-Type': 'application/json' }
+      if (window.authToken) {
+        headers['Authorization'] = `Bearer ${window.authToken}`
+      }
+      const response = await fetch(`/api/v1/sessions/${encodeURIComponent(sessionId)}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(patch),
       })
       if (response.ok) {
@@ -44,8 +52,13 @@ function ConversationList({ onSelectSession, selectedSessionId }) {
     const ok = window.confirm('Delete this session and all its messages?')
     if (!ok) return
     try {
-      const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+      const headers = {}
+      if (window.authToken) {
+        headers['Authorization'] = `Bearer ${window.authToken}`
+      }
+      const response = await fetch(`/api/v1/sessions/${encodeURIComponent(sessionId)}`, {
         method: 'DELETE',
+        headers,
       })
       if (response.ok) {
         await loadSessions()
@@ -57,7 +70,11 @@ function ConversationList({ onSelectSession, selectedSessionId }) {
 
   const exportSession = async (sessionId, format) => {
     try {
-      const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/export?format=${format}`)
+      const headers = {}
+      if (window.authToken) {
+        headers['Authorization'] = `Bearer ${window.authToken}`
+      }
+      const response = await fetch(`/api/v1/sessions/${encodeURIComponent(sessionId)}/export?format=${format}`, { headers })
       if (!response.ok) return
       const data = await response.json()
       const blob = new Blob([data.content || JSON.stringify(data, null, 2)], {
