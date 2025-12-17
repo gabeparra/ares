@@ -1,0 +1,375 @@
+.app {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 15px 15px 0 15px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-header {
+  border-bottom: 2px solid #ff0000;
+  padding: 12px 0;
+  margin-bottom: 15px;
+  flex-shrink: 0;
+}
+
+.header-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 0 10px;
+  gap: 12px;
+}
+
+.title-section {
+  width: 100%;
+}
+
+.header-content .status-indicator {
+  flex-shrink: 0;
+  margin-left: 0;
+}
+
+@media (max-width: 767px) {
+  .header-content {
+    gap: 10px;
+  }
+}
+
+.title-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.title-section h1 {
+  color: #ff0000;
+  text-shadow: 0 0 10px #ff0000;
+  font-size: clamp(1.5em, 4vw, 2.5em);
+  letter-spacing: 2px;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.subtitle {
+  color: #888;
+  font-size: clamp(0.75em, 1.5vw, 0.9em);
+  margin-top: 4px;
+}
+
+/* Layouts */
+.chat-layout,
+.conversations-layout,
+.meetings-layout {
+  display: grid;
+  gap: 15px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  padding: 0;
+  margin: 0;
+}
+
+.chat-main,
+.conversations-main,
+.meetings-main {
+  padding: 20px;
+}
+
+@media (max-width: 1023px) {
+  .chat-main,
+  .conversations-main,
+  .meetings-main {
+    padding: 15px;
+  }
+  
+  .chat-sidebar,
+  .conversations-sidebar,
+  .meetings-sidebar {
+    padding-top: 15px;
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-bottom: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .chat-main,
+  .conversations-main,
+  .meetings-main {
+    padding: 10px;
+  }
+  
+  .chat-sidebar,
+  .conversations-sidebar,
+  .meetings-sidebar {
+    padding-top: 10px;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-bottom: 0;
+  }
+}
+
+.chat-layout {
+  grid-template-columns: 1fr;
+}
+
+.conversations-layout {
+  grid-template-columns: 1fr;
+}
+
+.meetings-layout {
+  grid-template-columns: 1fr;
+}
+
+.chat-main,
+.conversations-main,
+.meetings-main {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chat-sidebar,
+.conversations-sidebar,
+.meetings-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding-top: 20px;
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-bottom: 0;
+  margin: 0;
+}
+
+.chat-sidebar > *:last-child,
+.conversations-sidebar > *:last-child,
+.meetings-sidebar > *:last-child {
+  margin-bottom: 0;
+}
+
+.chat-sidebar::-webkit-scrollbar,
+.conversations-sidebar::-webkit-scrollbar,
+.meetings-sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-sidebar::-webkit-scrollbar-track,
+.conversations-sidebar::-webkit-scrollbar-track,
+.meetings-sidebar::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.chat-sidebar::-webkit-scrollbar-thumb,
+.conversations-sidebar::-webkit-scrollbar-thumb,
+.meetings-sidebar::-webkit-scrollbar-thumb {
+  background: #ff0000;
+  border-radius: 4px;
+}
+
+.chat-sidebar::-webkit-scrollbar-thumb:hover,
+.conversations-sidebar::-webkit-scrollbar-thumb:hover,
+.meetings-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #ff3333;
+}
+
+.settings-layout {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 10px;
+}
+
+/* Full HD and larger screens (1920px+) */
+@media (min-width: 1920px) {
+  .app {
+    max-width: 1900px;
+    padding: 20px;
+  }
+  
+  .header-content {
+    padding: 0 20px;
+  }
+  
+  .chat-layout {
+    grid-template-columns: 1fr 380px;
+    gap: 20px;
+  }
+  
+  .conversations-layout {
+    grid-template-columns: 380px 1fr;
+    gap: 20px;
+  }
+  
+  .meetings-layout {
+    grid-template-columns: 1fr 550px;
+    gap: 20px;
+  }
+  
+  .settings-layout {
+    max-width: 1000px;
+  }
+}
+
+/* Large screens (1400px - 1919px) */
+@media (min-width: 1400px) and (max-width: 1919px) {
+  .app {
+    max-width: 100%;
+    padding: 18px;
+  }
+  
+  .chat-layout {
+    grid-template-columns: 1fr 350px;
+  }
+  
+  .conversations-layout {
+    grid-template-columns: 350px 1fr;
+  }
+  
+  .meetings-layout {
+    grid-template-columns: 1fr 500px;
+  }
+  
+  .settings-layout {
+    max-width: 900px;
+  }
+}
+
+/* Medium screens (1024px - 1399px) */
+@media (min-width: 1024px) and (max-width: 1399px) {
+  .chat-layout {
+    grid-template-columns: 1fr 320px;
+  }
+  
+  .conversations-layout {
+    grid-template-columns: 320px 1fr;
+  }
+  
+  .meetings-layout {
+    grid-template-columns: 1fr 450px;
+  }
+}
+
+/* Small screens (below 1024px) */
+@media (max-width: 1023px) {
+  .app {
+    padding: 10px;
+    height: calc(100vh - 20px);
+  }
+  
+  .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .title-section h1 {
+    font-size: 1.8em;
+  }
+  
+  .chat-sidebar,
+  .conversations-sidebar,
+  .meetings-sidebar {
+    max-height: 350px;
+  }
+}
+
+/* Very small screens (below 768px) */
+@media (max-width: 767px) {
+  .app {
+    padding: 8px 8px 0 8px;
+  }
+  
+  .header-content {
+    padding: 0 5px;
+  }
+  
+  .title-section h1 {
+    font-size: 1.5em;
+    letter-spacing: 1px;
+  }
+  
+  .subtitle {
+    font-size: 0.8em;
+  }
+}
+
+/* Footer */
+.app-footer {
+  flex-shrink: 0;
+  border-top: 1px solid #333;
+  padding: 12px 20px;
+  margin-top: auto;
+  background: #0a0a0a;
+}
+
+.footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #666;
+  font-size: 0.85em;
+}
+
+.footer-text {
+  color: #888;
+}
+
+.footer-separator {
+  color: #444;
+}
+
+@media (max-width: 767px) {
+  .app-footer {
+    padding: 10px 15px;
+  }
+  
+  .footer-content {
+    font-size: 0.8em;
+    gap: 8px;
+  }
+}
+
+.panel {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: clamp(12px, 1.5vw, 20px);
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex-shrink: 0;
+}
+
+.panel h2 {
+  color: #ff4444;
+  border-bottom: 1px solid #333;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  font-size: clamp(1.1em, 2vw, 1.3em);
+  line-height: 1.2;
+}
+
+.empty-state {
+  text-align: center;
+  color: #666;
+  padding: 40px;
+  font-style: italic;
+}
+
+.code-browser-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}

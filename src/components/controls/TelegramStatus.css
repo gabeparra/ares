@@ -1,0 +1,27 @@
+.telegram-status {
+  padding: 8px 12px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  font-size: 0.85em;
+}
+
+.telegram-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.telegram-indicator.enabled {
+  color: #00ff00;
+}
+
+.telegram-indicator.disabled {
+  color: #888;
+}
+
+.telegram-indicator.checking {
+  color: #ffaa00;
+}
+
