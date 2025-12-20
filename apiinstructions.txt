@@ -1,0 +1,232 @@
+================================================================================
+GEMMA AI API - ENDPOINTS DOCUMENTATION
+================================================================================
+
+BASE URL: http://localhost:60006
+(For external access, replace localhost with your server's IP address)
+
+================================================================================
+HEALTH CHECK ENDPOINTS
+================================================================================
+
+1. GET /
+   Description: Basic health check and server status
+   Response:
+   {
+     "status": "online",
+     "model": "gemma",
+     "device": "cpu" or "cuda",
+     "model_loaded": true/false
+   }
+   
+   Example:
+   curl http://localhost:60006/
+
+
+2. GET /health
+   Description: Health check endpoint
+   Response:
+   {
+     "status": "healthy",
+     "model_loaded": true/false
+   }
+   
+   Example:
+   curl http://localhost:60006/health
+
+
+================================================================================
+CHAT/GENERATION ENDPOINTS
+================================================================================
+
+3. POST /chat
+   Description: Generate AI response using Gemma model (recommended endpoint)
+   
+   Request Headers:
+   Content-Type: application/json
+   
+   Request Body:
+   {
+     "prompt": "string (required) - Your question or message",
+     "max_length": integer (optional, default: 512) - Maximum tokens to generate,
+     "temperature": float (optional, default: 0.7) - Controls randomness (0.0-2.0),
+     "top_p": float (optional, default: 0.9) - Nucleus sampling parameter,
+     "prompt_template": "string (optional) - Custom prompt template. Use {prompt} as placeholder for user input. If not provided, uses default Gemma format."
+   }
+   
+   Response:
+   {
+     "response": "string - AI generated response",
+     "model": "gemma",
+     "device": "cpu" or "cuda"
+   }
+   
+   Example with curl:
+   curl -X POST http://localhost:60006/chat \
+     -H "Content-Type: application/json" \
+     -d '{
+       "prompt": "What is machine learning?",
+       "max_length": 512,
+       "temperature": 0.7
+     }'
+   
+   Example with JavaScript:
+   fetch('http://localhost:60006/chat', {
+     method: 'POST',
+     headers: {
+       'Content-Type': 'application/json',
+     },
+     body: JSON.stringify({
+       prompt: 'What is machine learning?',
+       max_length: 512,
+       temperature: 0.7
+     })
+   })
+   .then(response => response.json())
+   .then(data => console.log(data.response));
+   
+   Example with Python:
+   import requests
+   
+   response = requests.post('http://localhost:60006/chat', json={
+       'prompt': 'What is machine learning?',
+       'max_length': 512,
+       'temperature': 0.7
+   })
+   print(response.json()['response'])
+
+
+4. POST /generate
+   Description: Alias for /chat endpoint (same functionality)
+   
+   Request/Response: Same as /chat endpoint
+   
+   Example:
+   curl -X POST http://localhost:60006/generate \
+     -H "Content-Type: application/json" \
+     -d '{"prompt": "Hello, how are you?"}'
+
+
+5. GET /api/prompt-template
+   Description: Get the current default prompt template
+   
+   Response:
+   {
+     "template": "string - Current prompt template",
+     "description": "Use {prompt} as placeholder for user input"
+   }
+   
+   Example:
+   curl http://localhost:60006/api/prompt-template
+
+
+6. POST /api/prompt-template
+   Description: Set the default prompt template for all future requests
+   
+   Request Body:
+   {
+     "template": "string - Prompt template with {prompt} placeholder"
+   }
+   
+   Response:
+   {
+     "message": "Prompt template updated",
+     "template": "string - New template"
+   }
+   
+   Example:
+   curl -X POST http://localhost:60006/api/prompt-template \
+     -H "Content-Type: application/json" \
+     -d '{"template": "User: {prompt}\nAssistant: "}'
+   
+   Example with custom template in chat request:
+   curl -X POST http://localhost:60006/chat \
+     -H "Content-Type: application/json" \
+     -d '{
+       "prompt": "Hello",
+       "prompt_template": "Question: {prompt}\nAnswer: "
+     }'
+
+
+================================================================================
+ERROR RESPONSES
+================================================================================
+
+503 Service Unavailable:
+   {
+     "detail": "Model not loaded yet"
+   }
+   - Occurs when the model is still loading on server startup
+
+500 Internal Server Error:
+   {
+     "detail": "Error generating response: [error message]"
+   }
+   - Occurs when there's an error during text generation
+
+422 Unprocessable Entity:
+   - Occurs when request body validation fails (missing/invalid fields)
+
+
+================================================================================
+CORS CONFIGURATION
+================================================================================
+
+The API is configured to accept requests from any origin (*) for development.
+This allows web browsers to make requests from HTML files.
+
+For production, update app.py to restrict origins:
+   allow_origins=["https://yourdomain.com"]
+
+
+================================================================================
+SERVER CONFIGURATION
+================================================================================
+
+Host: 0.0.0.0 (allows external network access)
+Port: 60006
+Protocol: HTTP
+
+To access from another machine on the same network:
+   http://[SERVER_IP]:60006/chat
+
+To find your server IP:
+   Linux/Mac: ip addr show or ifconfig
+   Windows: ipconfig
+
+
+================================================================================
+QUICK START EXAMPLES
+================================================================================
+
+1. Check if server is running:
+   curl http://localhost:60006/
+
+2. Send a simple message:
+   curl -X POST http://localhost:60006/chat \
+     -H "Content-Type: application/json" \
+     -d '{"prompt": "Hello!"}'
+
+3. Send with custom parameters:
+   curl -X POST http://localhost:60006/chat \
+     -H "Content-Type: application/json" \
+     -d '{
+       "prompt": "Explain quantum computing",
+       "max_length": 1024,
+       "temperature": 0.8
+     }'
+
+
+================================================================================
+NOTES
+================================================================================
+
+- The model uses Google's Gemma-2B-Instruct model
+- First request may be slower as the model loads
+- Temperature: Lower (0.1-0.5) = more focused, Higher (0.7-1.5) = more creative
+- max_length: Controls maximum response length in tokens
+- The API automatically formats prompts for the Gemma instruct model
+- All endpoints support CORS for web browser access
+
+================================================================================
+

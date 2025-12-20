@@ -15,7 +15,7 @@ class Config(BaseSettings):
     """Application configuration."""
 
     # LLM Provider selection
-    llm_provider: Literal["openai", "grok", "gemini", "local"] = Field(
+    llm_provider: Literal["openai", "grok", "gemini", "local", "gemma"] = Field(
         default="local",
         description="LLM provider to use",
     )
@@ -34,6 +34,24 @@ class Config(BaseSettings):
 
     # Gemini
     gemini_api_key: str | None = Field(default=None, description="Gemini API key")
+
+    # GEMMA AI API (External API service)
+    gemma_ai_api_url: str = Field(
+        default="http://localhost:8000",
+        description="GEMMA AI API base URL (e.g., http://192.168.1.100:8000)",
+    )
+    gemma_temperature: float = Field(
+        default=0.7,
+        description="Temperature for GEMMA AI (0.0-2.0, default: 0.7)",
+    )
+    gemma_max_length: int = Field(
+        default=512,
+        description="Maximum tokens to generate for GEMMA AI (default: 512)",
+    )
+    gemma_top_p: float = Field(
+        default=0.9,
+        description="Top-p sampling for GEMMA AI (default: 0.9)",
+    )
 
     # Local Ollama
     ollama_base_url: str = Field(

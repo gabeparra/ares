@@ -56,7 +56,6 @@ function Auth0ProviderWrapper({ children }) {
       clientId={config.clientId}
       authorizationParams={{
         redirect_uri: window.location.origin,
-        audience: config.audience,
       }}
       useRefreshTokens={true}
       cacheLocation="localstorage"

@@ -76,6 +76,15 @@ class Storage:
                 ON conversations(session_id, created_at)
                 """
             )
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
             await db.commit()
 
     async def ensure_session(self, session_id: str) -> None:
@@ -382,4 +391,32 @@ class Storage:
             lines.append(row["message"])
             lines.append("")
         return "\n".join(lines).strip() + "\n"
+
+    async def get_setting(self, key: str) -> str | None:
+        """Get a setting value by key."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT value FROM settings WHERE key = ?",
+                (key,),
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return row["value"]
+                return None
+
+    async def set_setting(self, key: str, value: str) -> None:
+        """Set a setting value by key."""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                """
+                INSERT INTO settings (key, value, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (key, value),
+            )
+            await db.commit()
 

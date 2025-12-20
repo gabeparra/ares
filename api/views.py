@@ -11,39 +11,53 @@ import httpx
 def chat(request):
     """
     Unified /v1/chat endpoint for ARES.
-    Accepts chat messages and routes them to local LLM (Ollama).
+    Accepts chat messages and routes them to GEMMA AI API.
     """
     try:
         data = json.loads(request.body)
         message = data.get('message', '')
         session_id = data.get('session_id')
-        model = data.get('model') or getattr(settings, 'DEFAULT_MODEL', None)
         
         if not message:
             return JsonResponse({'error': 'Message is required'}, status=400)
         
-        # Route to Ollama
-        ollama_url = f"{settings.OLLAMA_BASE_URL}/api/chat"
-        
-        messages = [{'role': 'user', 'content': message}]
+        # Route to GEMMA AI API
+        gemma_url = f"{settings.GEMMA_AI_API_URL}/chat"
         
         payload = {
-            'model': model or 'llama3.2:3b',
-            'messages': messages,
-            'stream': False,
+            'prompt': message,
+            'max_length': 512,
+            'temperature': 0.7,
+            'top_p': 0.9,
         }
         
         with httpx.Client(timeout=60.0) as client:
-            response = client.post(ollama_url, json=payload)
+            response = client.post(gemma_url, json=payload)
             response.raise_for_status()
             result = response.json()
         
         return JsonResponse({
-            'response': result.get('message', {}).get('content', ''),
-            'model': model,
+            'response': result.get('response', ''),
+            'model': result.get('model', 'gemma'),
             'session_id': session_id,
         })
     
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 503:
+            return JsonResponse({
+                'error': 'GEMMA AI model is still loading. Please try again in a moment.'
+            }, status=503)
+        error_msg = str(e)
+        try:
+            error_data = e.response.json()
+            error_msg = error_data.get('detail', error_msg)
+        except Exception:
+            pass
+        return JsonResponse({'error': f'Error calling GEMMA AI API: {error_msg}'}, status=e.response.status_code)
+    except httpx.ConnectError as e:
+        return JsonResponse({
+            'error': f'Cannot connect to GEMMA AI API at {settings.GEMMA_AI_API_URL}. Make sure the API is running and accessible.'
+        }, status=503)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
@@ -56,22 +70,43 @@ def models_list(request):
     """
     if request.method == 'GET':
         try:
-            ollama_url = f"{settings.OLLAMA_BASE_URL}/api/tags"
+            # Check GEMMA AI API health to verify it's available
+            health_url = f"{settings.GEMMA_AI_API_URL}/health"
             
             with httpx.Client(timeout=10.0) as client:
-                response = client.get(ollama_url)
+                response = client.get(health_url)
                 response.raise_for_status()
                 result = response.json()
             
-            models = [model['name'] for model in result.get('models', [])]
+            # GEMMA AI API only has one model: "gemma"
+            models = ['gemma']
             
             return JsonResponse({
                 'models': models,
-                'current_model': getattr(settings, 'CURRENT_MODEL', None),
+                'current_model': getattr(settings, 'CURRENT_MODEL', 'gemma'),
             })
         
+        except httpx.ConnectError as e:
+            return JsonResponse({
+                'error': f'Cannot connect to GEMMA AI API at {settings.GEMMA_AI_API_URL}. Make sure the API is running and accessible.',
+                'models': ['gemma'],  # Return model list even if API is unreachable
+                'current_model': 'gemma',
+            }, status=503)
+        except httpx.TimeoutException as e:
+            return JsonResponse({
+                'error': f'Timeout connecting to GEMMA AI API at {settings.GEMMA_AI_API_URL}',
+                'models': ['gemma'],
+                'current_model': 'gemma',
+            }, status=503)
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            error_msg = str(e)
+            if hasattr(e, 'response') and hasattr(e.response, 'status_code'):
+                error_msg = f"HTTP {e.response.status_code}: {error_msg}"
+            return JsonResponse({
+                'error': f'Error checking GEMMA AI API: {error_msg}',
+                'models': ['gemma'],
+                'current_model': 'gemma',
+            }, status=500)
     
     elif request.method == 'POST':
         try:
@@ -81,20 +116,12 @@ def models_list(request):
             if not model:
                 return JsonResponse({'error': 'Model name is required'}, status=400)
             
+            # GEMMA AI API only supports "gemma" model
+            if model != 'gemma':
+                return JsonResponse({'error': f'Model {model} not supported. Only "gemma" is available.'}, status=400)
+            
             # In a real implementation, store this in database or cache
-            # For now, just validate the model exists
-            ollama_url = f"{settings.OLLAMA_BASE_URL}/api/tags"
-            
-            with httpx.Client(timeout=10.0) as client:
-                response = client.get(ollama_url)
-                response.raise_for_status()
-                result = response.json()
-            
-            available_models = [m['name'] for m in result.get('models', [])]
-            
-            if model not in available_models:
-                return JsonResponse({'error': f'Model {model} not found'}, status=404)
-            
+            # For now, just return success
             return JsonResponse({'success': True, 'model': model})
         
         except Exception as e:
@@ -138,4 +165,49 @@ def conversations_list(request):
     
     # TODO: Implement conversation retrieval from database
     return JsonResponse({'conversations': []})
+
+
+@require_http_methods(["GET", "POST"])
+@csrf_exempt
+def settings_prompt(request):
+    """
+    GET: Get the current chat system prompt
+    POST: Update the chat system prompt
+    """
+    if request.method == 'GET':
+        # TODO: Load from database
+        # For now, return a default
+        default_prompt = """You are Glup, an advanced AI assistant.
+
+Core behavior:
+- Answer the user's question directly and completely.
+- Be concise, but not empty: always provide a substantive response.
+- Do not repeat words, phrases, or sentences. If you notice repetition starting, stop and rephrase once.
+- Avoid low-signal filler like "Okay", "I understand", or "Sure" unless followed by real content.
+- If the user message is unclear, ask ONE clarifying question.
+
+Output rules:
+- No stuttering.
+- No long preambles.
+- Prefer short paragraphs and lists when helpful.
+"""
+        return JsonResponse({'prompt': default_prompt})
+    
+    elif request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            prompt = data.get('prompt', '')
+            
+            if not prompt:
+                return JsonResponse({'error': 'Prompt is required'}, status=400)
+            
+            # TODO: Save to database
+            # For now, just return success
+            return JsonResponse({
+                'success': True,
+                'message': 'Prompt updated successfully',
+            })
+        
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
 

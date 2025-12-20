@@ -7,12 +7,17 @@
 
 .tabs-header {
   display: flex;
-  gap: 4px;
-  border-bottom: 2px solid #333;
-  padding: 0 8px;
-  background: #1a1a1a;
+  gap: 6px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 12px 0 12px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.02) 0%,
+    rgba(255, 0, 0, 0.02) 100%
+  );
   overflow-x: auto;
   flex-shrink: 0;
+  border-radius: 12px 12px 0 0;
 }
 
 .tabs-header::-webkit-scrollbar {
@@ -22,31 +27,40 @@
 .tab-button {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 16px;
-  background: transparent;
-  border: none;
-  border-bottom: 3px solid transparent;
-  color: #888;
+  gap: 8px;
+  padding: 12px 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 2px solid transparent;
+  color: rgba(226, 232, 240, 0.75);
   cursor: pointer;
   font-family: inherit;
-  font-size: clamp(0.85em, 1.2vw, 0.95em);
+  font-size: clamp(0.9em, 1.2vw, 1em);
   font-weight: 500;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   white-space: nowrap;
   position: relative;
   flex-shrink: 0;
+  border-radius: 12px 12px 0 0;
 }
 
 .tab-button:hover {
-  color: #e0e0e0;
-  background: #252525;
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .tab-button.active {
-  color: #ff0000;
-  border-bottom-color: #ff0000;
-  background: #1a1a1a;
+  color: rgba(255, 255, 255, 1);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 0, 0, 0.15) 0%,
+    rgba(200, 0, 0, 0.12) 100%
+  );
+  border-color: rgba(255, 0, 0, 0.4);
+  border-bottom-color: rgba(255, 0, 0, 0.5);
+  font-weight: 600;
+  box-shadow: 0 -2px 8px rgba(255, 0, 0, 0.15);
 }
 
 .tab-icon {
@@ -77,6 +91,7 @@
   flex-direction: column;
   min-height: 0;
   margin-bottom: 0;
+  padding: 16px;
 }
 
 @media (max-width: 767px) {
@@ -84,18 +99,17 @@
     gap: 2px;
     padding: 0 4px;
   }
-  
+
   .tab-button {
     padding: 8px 12px;
     gap: 4px;
   }
-  
+
   .tab-label {
     display: none;
   }
-  
+
   .tab-icon {
     font-size: 1.2em;
   }
 }
-

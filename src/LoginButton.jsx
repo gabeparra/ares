@@ -1,11 +1,17 @@
 import { useAuth0 } from "@auth0/auth0-react";
+import './components/auth/Auth.css';
 
 const LoginButton = () => {
-  const { loginWithRedirect } = useAuth0();
+  const { loginWithRedirect, isAuthenticated } = useAuth0();
+  
+  if (isAuthenticated) {
+    return null;
+  }
+  
   return (
     <button 
       onClick={() => loginWithRedirect()} 
-      className="button login"
+      className="auth-button login-button"
     >
       Log In
     </button>
