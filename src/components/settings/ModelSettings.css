@@ -1,0 +1,264 @@
+.panel.model-settings-panel {
+  /*
+    Must be allowed to shrink inside the tab layout, otherwise content gets clipped
+    by parent containers (which looks like fields overlap/are covered).
+  */
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto; /* single scroll container */
+  overflow-x: hidden;
+}
+
+.model-settings-panel,
+.model-settings-panel * {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  width: 100%;
+}
+
+.settings-row-actions {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: center;
+}
+
+@media (max-width: 767px) {
+  .settings-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .settings-row-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-section {
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #333;
+  width: 100%;
+  /* Don't clip content (can hide inputs / dropdowns on small layouts) */
+  overflow-x: hidden; /* fallback */
+  overflow-x: clip; /* prevents random horizontal scrollbars */
+  overflow-y: visible;
+}
+
+.settings-section:last-child {
+  border-bottom: none;
+}
+
+.settings-section h3 {
+  color: #ff4444;
+  margin-bottom: 15px;
+  font-size: 1em;
+}
+
+.setting-label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 15px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.setting-label > span:first-child {
+  color: #e0e0e0;
+  font-weight: 500;
+  font-size: 0.9em;
+}
+
+.model-select {
+  padding: 10px;
+  background: #252525;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-family: inherit;
+  font-size: 0.9em;
+  cursor: pointer;
+  width: 100%;
+  height: 44px;
+}
+
+.model-select:focus {
+  outline: none;
+  border-color: #ff0000;
+}
+
+.refresh-models-btn {
+  padding: 10px 14px;
+  background: #333;
+  border: 1px solid #555;
+  border-radius: 6px;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85em;
+  transition: all 0.2s;
+  height: 44px;
+  white-space: nowrap;
+}
+
+.refresh-models-btn:hover:not(:disabled) {
+  background: #444;
+  border-color: #ff0000;
+}
+
+.refresh-models-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.slider-container {
+  display: grid;
+  grid-template-columns: 1fr 60px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.slider {
+  flex: 1;
+  height: 6px;
+  background: #333;
+  border-radius: 3px;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #ff0000;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  background: #ff3333;
+}
+
+.slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #ff0000;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+
+.slider::-moz-range-thumb:hover {
+  background: #ff3333;
+}
+
+.slider-value {
+  min-width: 60px;
+  text-align: right;
+  color: #ff6666;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+}
+
+.setting-label small {
+  color: #888;
+  font-size: 0.8em;
+  margin-top: 4px;
+}
+
+.settings-actions {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #333;
+}
+
+.save-config-btn {
+  width: 100%;
+  padding: 12px;
+  background: #ff0000;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.save-config-btn:hover {
+  background: #ff3333;
+}
+
+.prompt-textarea {
+  width: 100%;
+  padding: 12px;
+  background: #252525;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+  resize: vertical;
+  line-height: 1.5;
+  height: clamp(180px, 30vh, 420px);
+  min-height: 180px;
+}
+
+.prompt-textarea:focus {
+  outline: none;
+  border-color: #ff0000;
+}
+
+.prompt-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.secondary-btn,
+.primary-btn {
+  width: 100%;
+  padding: 10px;
+  background: #333;
+  color: #e0e0e0;
+  border: 1px solid #555;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.primary-btn {
+  background: #ff0000;
+  border-color: #ff0000;
+  color: #fff;
+}
+
+.secondary-btn:hover:not(:disabled) {
+  background: #444;
+  border-color: #ff0000;
+}
+
+.primary-btn:hover:not(:disabled) {
+  background: #ff3333;
+  border-color: #ff3333;
+}
+
+.secondary-btn:disabled,
+.primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+

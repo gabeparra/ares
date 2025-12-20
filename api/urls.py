@@ -9,6 +9,7 @@ urlpatterns = [
     path('auth/config', auth_views.auth_config, name='auth_config'),
     path('auth/user', auth_views.user_info, name='user_info'),
     path('auth/verify', auth_views.verify_token_view, name='verify_token'),
+    path('auth/check-admin', auth_views.check_admin_role, name='check_admin_role'),
     
     # API endpoints
     path('chat', views.chat, name='chat'),
@@ -16,5 +17,6 @@ urlpatterns = [
     path('sessions', views.sessions_list, name='sessions'),
     path('sessions/<str:session_id>', views.session_detail, name='session_detail'),
     path('conversations', views.conversations_list, name='conversations'),
+    path('settings/prompt', views.settings_prompt, name='settings_prompt'),
 ]
 

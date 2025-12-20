@@ -14,7 +14,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-me-in-produc
 
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,aresai.space,www.aresai.space').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -111,6 +111,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1",
     "http://localhost:3000",  # Keep for dev mode
     "http://127.0.0.1:3000",  # Keep for dev mode
+    "https://aresai.space",
+    "https://www.aresai.space",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -121,6 +123,13 @@ AUTH0_CLIENT_ID = os.getenv('AUTH0_CLIENT_ID', '')
 AUTH0_CLIENT_SECRET = os.getenv('AUTH0_CLIENT_SECRET', '')
 AUTH0_AUDIENCE = os.getenv('AUTH0_AUDIENCE', '')
 
-# Ollama Configuration
-OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
+# Auth0 Management API (M2M) Configuration
+# These are separate credentials for a Machine-to-Machine application
+# Create an M2M app in Auth0 Dashboard > Applications > Create Application > Machine to Machine
+# Grant it permissions: read:users, read:roles, read:role_members
+AUTH0_M2M_CLIENT_ID = os.getenv('AUTH0_M2M_CLIENT_ID', '')
+AUTH0_M2M_CLIENT_SECRET = os.getenv('AUTH0_M2M_CLIENT_SECRET', '')
+
+# GEMMA AI API Configuration
+GEMMA_AI_API_URL = os.getenv('GEMMA_AI_API_URL', 'http://localhost:60006')
 

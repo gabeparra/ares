@@ -1,18 +1,23 @@
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 # Accept build arguments for Vite environment variables
 ARG VITE_AUTH0_DOMAIN
 ARG VITE_AUTH0_CLIENT_ID
+ARG VITE_AUTH0_REDIRECT_URI
+ARG VITE_AUTH0_AUDIENCE
 
 # Set as environment variables for Vite build
 ENV VITE_AUTH0_DOMAIN=$VITE_AUTH0_DOMAIN
 ENV VITE_AUTH0_CLIENT_ID=$VITE_AUTH0_CLIENT_ID
+ENV VITE_AUTH0_REDIRECT_URI=$VITE_AUTH0_REDIRECT_URI
+ENV VITE_AUTH0_AUDIENCE=$VITE_AUTH0_AUDIENCE
 
 # Copy package files
 COPY package*.json ./
 
+RUN npm install -g npm@11.7.0
 # Install dependencies
 RUN npm ci
 

@@ -18,6 +18,7 @@ from caption_ai.web.routes import (
     summarizer,
     power_pet_door,
     telegram,
+    settings,
 )
 from caption_ai.web.websocket import websocket_endpoint
 
@@ -43,6 +44,7 @@ app.include_router(models.router)
 app.include_router(summarizer.router)
 app.include_router(power_pet_door.router)
 app.include_router(telegram.router)
+app.include_router(settings.router)
 
 # Serve static files from React build
 static_path = Path(__file__).parent.parent.parent.parent / "web" / "dist"

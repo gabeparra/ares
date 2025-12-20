@@ -17,11 +17,40 @@ class LocalOllamaClient(LLMClient):
         # Keep the original attribute for backward compatibility (used by summarization prompts elsewhere).
         self.system_prompt = get_system_prompt()
         # Dedicated chat prompt to reduce repetition and filler responses.
+        # Start with default, will be loaded from storage on first use if available
         self.chat_system_prompt = get_chat_system_prompt()
+        self._prompt_loaded = False
     
     def set_model(self, model: str) -> None:
         """Change the model for this client."""
         self.model = model
+
+    async def _load_prompt_from_storage(self) -> None:
+        """Load chat system prompt from storage if available."""
+        if self._prompt_loaded:
+            return
+        
+        try:
+            from caption_ai.web.state import get_storage
+            storage = get_storage()
+            if storage:
+                stored_prompt = await storage.get_setting("chat_system_prompt")
+                if stored_prompt:
+                    self.chat_system_prompt = stored_prompt
+        except Exception as e:
+            # If storage is not available or fails, fall back to default
+            print(f"[DEBUG] Could not load prompt from storage: {e}, using default")
+        finally:
+            self._prompt_loaded = True
+
+    def reload_prompt(self, prompt: str | None = None) -> None:
+        """Reload the chat system prompt. If prompt is provided, use it directly. Otherwise reload from storage."""
+        if prompt is not None:
+            self.chat_system_prompt = prompt
+            self._prompt_loaded = True
+        else:
+            # Reset flag to force reload on next use
+            self._prompt_loaded = False
 
     async def complete(self, prompt: str, conversation_history: list[dict] | None = None) -> LLMReply:
         """Complete prompt using local Ollama API.
@@ -37,6 +66,9 @@ class LocalOllamaClient(LLMClient):
             return LLMReply(content="Error: Empty prompt provided", model=self.model)
 
         prompt = str(prompt).strip()
+
+        # Load prompt from storage if not already loaded
+        await self._load_prompt_from_storage()
 
         def _build_messages(include_history: bool) -> list[dict]:
             """Build Ollama /api/chat messages with optional history."""

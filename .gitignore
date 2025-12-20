@@ -86,3 +86,69 @@ docker-compose.yml
 
 gemma-3-4b-it-abliterated/
 gemma-3-4b-it-abliterated-GGUF/
+
+# Hugging Face
+.hf/    
+
+ssl/
+
+# Python virtual environments
+venv/
+.env/
+.envrc
+*.env
+
+# Compiled Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# VSCode
+.vscode/
+
+# JetBrains
+.idea/
+
+# Mac/OSX
+.AppleDouble
+.LSOverride
+
+# Backup files
+*~
+*.bak
+*.swp
+*.swo
+*.tmp
+
+# Coverage
+coverage.xml
+
+# Cache
+.cache/
+.mypy_cache/
+.pyre/
+.pyright/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Misc
+*.sublime-project
+*.sublime-workspace
+
+# Local dev & system config
+.local/
+*.local
+
+# Frontend artifacts
+web/build/
+*.map
+
+# Docker misc
+docker-compose.override.yml
+Dockerfile
+
+# Systemd files
+*.service
+

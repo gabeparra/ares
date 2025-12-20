@@ -330,6 +330,77 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
     return new Date(date).toLocaleTimeString()
   }
 
+  const handleReadCodebase = async () => {
+    try {
+      setIsTyping(true)
+      setMessages(prev => [...prev, {
+        type: 'user',
+        content: 'Please analyze the ARES codebase structure and provide an overview of the main components, architecture, and key files.',
+        timestamp: new Date(),
+      }])
+
+      // Read key files from the codebase
+      const keyFiles = [
+        'src/App.jsx',
+        'src/main.jsx',
+        'api/views.py',
+        'api/auth.py',
+        'ares_project/settings.py',
+        'docker-compose.yml',
+      ]
+
+      let codebaseContent = 'ARES Codebase Overview:\n\n'
+      
+      // For now, we'll send a message asking the AI to analyze the codebase
+      // In a real implementation, you'd fetch these files from the server
+      const messageContent = `Analyze the ARES codebase. The main files include:
+- Frontend: React app in src/ with components for chat, conversations, settings
+- Backend: Django REST API in api/ with Auth0 authentication
+- Configuration: Docker setup, nginx config, environment variables
+- Key features: Chat interface, session management, model selection, transcript processing
+
+Please provide an overview of the architecture and suggest improvements.`
+
+      const headers = {
+        'Content-Type': 'application/json',
+      }
+      if (window.authToken) {
+        headers['Authorization'] = `Bearer ${window.authToken}`
+      }
+
+      const response = await fetch('/api/v1/chat', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message: messageContent,
+          session_id: sessionId,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to analyze codebase')
+      }
+
+      const data = await response.json()
+      
+      setIsTyping(false)
+      setMessages(prev => [...prev, {
+        type: 'assistant',
+        content: data.response || '',
+        timestamp: new Date(),
+      }])
+    } catch (error) {
+      console.error('Failed to read codebase:', error)
+      setIsTyping(false)
+      setMessages(prev => [...prev, {
+        type: 'error',
+        content: `Error analyzing codebase: ${error.message}`,
+        timestamp: new Date(),
+      }])
+    }
+  }
+
   return (
     <div className="panel chat-panel">
       <div className="chat-header">
@@ -458,6 +529,14 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
             title="Attach file for review"
           >
             📎
+          </button>
+          <button
+            type="button"
+            onClick={handleReadCodebase}
+            className="code-read-button"
+            title="Read ARES codebase and bring to chat"
+          >
+            💻
           </button>
         </div>
 
