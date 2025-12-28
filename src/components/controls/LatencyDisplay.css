@@ -1,0 +1,14 @@
+.connection-latency-display {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85em;
+  font-family: "Courier New", monospace;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
+  border-radius: 6px;
+  line-height: 1.2;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: block;
+  margin-left: 0;
+}
+

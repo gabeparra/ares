@@ -175,7 +175,7 @@ if [ -n "$SELECTED_MODEL" ]; then
     echo ""
     echo "Next steps:"
     echo "1. Restart your backend server:"
-    echo "   python -m caption_ai --web --port 8000"
+    echo "   python manage.py runserver 0.0.0.0:8000"
     echo ""
     echo "2. Or change the model in the web UI Settings tab"
     echo ""

@@ -81,7 +81,7 @@ function SummarizerControl({ ws }) {
       </button>
       <div className="summarizer-info">
         {isRunning ? (
-          <p>Glup is analyzing conversation segments and generating summaries</p>
+          <p>Ares is analyzing conversation segments and generating summaries</p>
         ) : (
           <p>Segment processing paused. New segments will still be captured but not analyzed.</p>
         )}

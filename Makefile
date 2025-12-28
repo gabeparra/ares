@@ -1,7 +1,18 @@
-.PHONY: run lint test format install clean
+.PHONY: run dev lint test format install clean rebuild-model init-ares
 
 run:
-	python -m caption_ai
+	python manage.py runserver
+
+dev:
+	python manage.py runserver 0.0.0.0:8000
+
+# Rebuild the Ollama model with updated Modelfile (run on machine with Ollama)
+rebuild-model:
+	ollama create ares -f Modelfile
+
+# Initialize ARES identity in the database
+init-ares:
+	python3 init_ares.py --init
 
 lint:
 	ruff check .

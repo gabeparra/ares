@@ -4,7 +4,7 @@ import './SummaryPanel.css'
 function SummaryPanel({ summary }) {
   return (
     <div className="panel summary-panel">
-      <h2>Glup Analysis</h2>
+      <h2>Ares Analysis</h2>
       <div className="summary-content">
         {summary ? (
           <div className="summary-text">{summary.split('\n').map((line, idx) => (

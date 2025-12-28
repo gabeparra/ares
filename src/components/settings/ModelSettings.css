@@ -262,3 +262,221 @@
   cursor: not-allowed;
 }
 
+/* Model status display */
+.model-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 12px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+}
+
+.status-label {
+  color: #888;
+  font-size: 0.9em;
+}
+
+.status-value {
+  color: #e0e0e0;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-value.loaded {
+  color: #4ade80;
+}
+
+.status-value.not-loaded {
+  color: #888;
+}
+
+.status-badge {
+  font-size: 0.7em;
+  padding: 2px 6px;
+  background: #166534;
+  color: #4ade80;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.model-error {
+  color: #ff6b6b;
+  background: rgba(255, 0, 0, 0.1);
+  border: 1px solid rgba(255, 0, 0, 0.3);
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  font-size: 0.9em;
+}
+
+.load-model-btn {
+  padding: 10px 14px;
+  background: #ff0000;
+  border: 1px solid #ff0000;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85em;
+  font-weight: 600;
+  transition: all 0.2s;
+  height: 44px;
+  white-space: nowrap;
+}
+
+.load-model-btn:hover:not(:disabled) {
+  background: #ff3333;
+  border-color: #ff3333;
+}
+
+.load-model-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Update settings row for 3 columns when in model section with 3 buttons */
+.model-settings-panel .settings-section:first-of-type .settings-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+@media (max-width: 767px) {
+  .model-settings-panel .settings-section:first-of-type .settings-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .model-status {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+}
+
+/* Service Controls / Danger Section */
+.danger-section {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(0, 0, 0, 0.2) 100%);
+}
+
+.danger-section h3 {
+  color: #f87171;
+}
+
+.section-description {
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 16px 0;
+  font-size: 0.95em;
+}
+
+.service-controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.restart-btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid;
+}
+
+.restart-backend {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+
+.restart-backend:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(245, 158, 11, 0.2) 100%);
+  border-color: rgba(245, 158, 11, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+}
+
+.restart-frontend {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #60a5fa;
+}
+
+.restart-frontend:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.35) 0%, rgba(59, 130, 246, 0.2) 100%);
+  border-color: rgba(59, 130, 246, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.restart-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.danger-note {
+  display: block;
+  margin-top: 12px;
+  color: rgba(248, 113, 113, 0.8);
+  font-size: 0.85em;
+}
+
+@media (max-width: 500px) {
+  .service-controls {
+    flex-direction: column;
+  }
+  
+  .restart-btn {
+    width: 100%;
+  }
+}
+
+/* Agent settings */
+.agent-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: #252525;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-family: inherit;
+  font-size: 0.9em;
+}
+
+.agent-input:focus {
+  outline: none;
+  border-color: #ff0000;
+}
+
+.agent-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #ff0000;
+  cursor: pointer;
+}
+
+.checkbox-label span {
+  color: #e0e0e0;
+  font-weight: 500;
+}
+

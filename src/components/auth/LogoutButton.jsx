@@ -19,9 +19,16 @@ function LogoutButton() {
             className="auth-user-avatar"
           />
         )}
-        <span className="auth-user-name">
-          {user?.name || user?.email || 'User'}
-        </span>
+        <div className="auth-user-details">
+          <span className="auth-user-name">
+            {user?.name || user?.email || 'User'}
+          </span>
+          {user?.sub && (
+            <span className="auth-user-id" title={user.sub}>
+              {user.sub.length > 24 ? user.sub.substring(0, 24) + '...' : user.sub}
+            </span>
+          )}
+        </div>
       </div>
       <button 
         className="auth-button logout-button"

@@ -1,7 +1,7 @@
 .connection-status {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 20px;
   padding: 8px 16px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -15,59 +15,9 @@
   border-color: rgba(255, 255, 255, 0.16);
 }
 
-.status-indicator {
+.connection-status-indicator {
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-.status-indicator.connected .status-dot {
-  background: #00ff88;
-  box-shadow: 0 0 12px rgba(0, 255, 136, 0.6);
-}
-
-.status-indicator.disconnected .status-dot {
-  background: #ff4444;
-  box-shadow: 0 0 12px rgba(255, 68, 68, 0.6);
-  animation: none;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.status-text {
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 600;
-  letter-spacing: 0.3px;
-}
-
-.status-indicator.connected .status-text {
-  color: rgba(0, 255, 136, 0.9);
-}
-
-.status-indicator.disconnected .status-text {
-  color: rgba(255, 68, 68, 0.9);
-}
-
-.latency-info {
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 0.85em;
-  font-family: "Courier New", monospace;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 2px 8px;
-  border-radius: 6px;
+  gap: 8px;
+  flex-shrink: 0;
 }

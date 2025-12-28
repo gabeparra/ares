@@ -8,7 +8,7 @@ param(
 
 switch ($Command) {
     "run" {
-        python -m caption_ai
+        python manage.py runserver
     }
     "lint" {
         ruff check .

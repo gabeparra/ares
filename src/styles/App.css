@@ -1,11 +1,13 @@
 .app {
-  max-width: 1400px;
+  max-width: 1800px;
   margin: 0 auto;
-  padding: 24px 24px 0 24px;
+  padding: 12px 20px 0 20px;
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .app-header {
@@ -15,9 +17,9 @@
     rgba(20, 20, 26, 0.95) 100%
   );
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  padding: 20px 28px;
-  margin-bottom: 20px;
+  border-radius: 12px;
+  padding: 12px 24px;
+  margin-bottom: 12px;
   flex-shrink: 0;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 0, 0, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -30,7 +32,7 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  gap: 20px;
+  gap: 16px;
 }
 
 .title-section {
@@ -65,18 +67,18 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   text-shadow: 0 0 30px rgba(255, 0, 0, 0.3);
-  font-size: clamp(1.8em, 4vw, 2.8em);
-  letter-spacing: 3px;
+  font-size: clamp(1.5em, 3vw, 2em);
+  letter-spacing: 2px;
   margin: 0;
-  line-height: 1.2;
+  line-height: 1.1;
   font-weight: 700;
 }
 
 .subtitle {
-  color: rgba(226, 232, 240, 0.75);
-  font-size: clamp(0.8em, 1.5vw, 0.95em);
-  margin-top: 6px;
-  letter-spacing: 0.5px;
+  color: rgba(226, 232, 240, 0.65);
+  font-size: clamp(0.75em, 1.2vw, 0.85em);
+  margin-top: 2px;
+  letter-spacing: 0.3px;
   font-weight: 400;
 }
 
@@ -92,20 +94,25 @@
 /* Full HD and larger screens (1920px+) */
 @media (min-width: 1920px) {
   .app {
-    max-width: 1900px;
-    padding: 20px;
+    max-width: 1860px;
+    padding: 10px 30px;
   }
 
   .header-content {
-    padding: 0 20px;
+    padding: 0 10px;
   }
 }
 
-/* Large screens (1400px - 1919px) */
-@media (min-width: 1400px) and (max-width: 1919px) {
+/* Large screens (1200px - 1919px) - includes 1920x1080 */
+@media (min-width: 1200px) and (max-width: 1919px) {
   .app {
-    max-width: 100%;
-    padding: 18px;
+    max-width: calc(100% - 40px);
+    padding: 10px 20px;
+  }
+
+  .app-header {
+    padding: 10px 20px;
+    margin-bottom: 10px;
   }
 }
 
@@ -113,7 +120,8 @@
 @media (max-width: 1023px) {
   .app {
     padding: 10px;
-    height: calc(100vh - 20px);
+    height: 100vh;
+    height: 100dvh;
   }
 
   .header-content {
@@ -191,9 +199,9 @@
     rgba(22, 22, 28, 0.98) 100%
   );
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
-  padding: clamp(16px, 1.8vw, 24px);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 0, 0, 0.1),
+  border-radius: 14px;
+  padding: clamp(12px, 1.5vw, 18px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
@@ -212,9 +220,9 @@
 .panel h2 {
   color: rgba(255, 255, 255, 0.92);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 8px;
-  margin-bottom: 12px;
-  font-size: clamp(1.1em, 2vw, 1.3em);
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+  font-size: clamp(1em, 1.5vw, 1.15em);
   line-height: 1.2;
 }
 
@@ -248,6 +256,7 @@
 /* Auth (login / error / access denied) */
 .auth-page {
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
   display: flex;
   align-items: center;
