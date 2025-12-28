@@ -4,6 +4,44 @@ import { Auth0Provider } from "@auth0/auth0-react";
 import App from "./App.jsx";
 import "./styles/index.css";
 
+// Capture frontend console logs so they can be viewed inside the app (Logs tab).
+(() => {
+  if (window.__ares_frontend_logs) return;
+  window.__ares_frontend_logs = [];
+  const max = 1000;
+
+  const push = (level, args) => {
+    try {
+      const msg = args
+        .map((a) => {
+          if (typeof a === "string") return a;
+          try {
+            return JSON.stringify(a);
+          } catch {
+            return String(a);
+          }
+        })
+        .join(" ");
+      window.__ares_frontend_logs.push({ ts: Date.now(), level, message: msg });
+      if (window.__ares_frontend_logs.length > max) {
+        window.__ares_frontend_logs.splice(0, window.__ares_frontend_logs.length - max);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const wrap = (level) => {
+    const orig = console[level];
+    console[level] = (...args) => {
+      push(level, args);
+      return orig.apply(console, args);
+    };
+  };
+
+  ["log", "info", "warn", "error"].forEach(wrap);
+})();
+
 const domain = import.meta.env.VITE_AUTH0_DOMAIN;
 const clientId = import.meta.env.VITE_AUTH0_CLIENT_ID;
 const audience = import.meta.env.VITE_AUTH0_AUDIENCE;

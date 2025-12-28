@@ -79,9 +79,27 @@
   box-shadow: 0 0 8px rgba(255, 0, 0, 0.3);
 }
 
+.auth-user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .auth-user-name {
   color: rgba(255, 255, 255, 0.9);
   font-size: 0.95em;
   font-weight: 600;
   letter-spacing: 0.2px;
+}
+
+.auth-user-id {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.7em;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.auth-user-id:hover {
+  color: rgba(255, 255, 255, 0.7);
 }

@@ -21,3 +21,6 @@ rich>=13.0.0
 # Telegram Bot (for future integration)
 python-telegram-bot>=20.0
 
+# RAG (Retrieval-Augmented Generation)
+chromadb>=0.4.22
+

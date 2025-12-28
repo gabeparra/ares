@@ -1,34 +1,13 @@
 [project]
-name = "caption-ai"
+name = "ares"
 version = "0.1.0"
-description = "Meeting caption listener + summarizer with pluggable LLM backends"
+description = "Ares AI - Django-based AI Assistant"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
     {name = "Gabriel Parra", email = "gabeparra@example.com"}
 ]
-dependencies = [
-    "pydantic>=2.0.0",
-    "pydantic-settings>=2.0.0",
-    "python-dotenv>=1.0.0",
-    "httpx>=0.25.0",
-    "rich>=13.0.0",
-    "aiosqlite>=0.19.0",
-]
-
-[project.optional-dependencies]
-stt = [
-    "faster-whisper>=0.10.0",
-    "sounddevice>=0.4.6",
-]
-browser = [
-    "playwright>=1.40.0",
-]
-local = []
-
-[project.scripts]
-caption-ai = "caption_ai.main:cli"
 
 [build-system]
 requires = ["hatchling"]

@@ -73,7 +73,7 @@ function BackendControl({ isConnected, onRefresh }) {
         {!isConnected && (
           <div className="backend-help">
             <p>Backend not running. Start it with:</p>
-            <code>python -m caption_ai --web --port 8000</code>
+            <code>python manage.py runserver 0.0.0.0:8000</code>
           </div>
         )}
       </div>

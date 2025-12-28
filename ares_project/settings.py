@@ -5,6 +5,8 @@ Django settings for ARES project.
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+import logging
+from datetime import datetime
 
 load_dotenv()
 
@@ -82,7 +84,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = os.getenv('TIME_ZONE', 'America/Los_Angeles')  # Default to Pacific Time
 USE_I18N = True
 USE_TZ = True
 
@@ -132,4 +134,65 @@ AUTH0_M2M_CLIENT_SECRET = os.getenv('AUTH0_M2M_CLIENT_SECRET', '')
 
 # GEMMA AI API Configuration
 GEMMA_AI_API_URL = os.getenv('GEMMA_AI_API_URL', 'http://localhost:60006')
+
+# Stable Diffusion API Configuration
+SD_API_URL = os.getenv('VITE_SD_API_URL', 'http://host.docker.internal:7860')
+
+# Ollama Configuration
+OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
+OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'mistral')
+
+# Telegram integration
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET")
+
+# Logging (also written to /app/logs/backend.log inside docker)
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+BACKEND_LOG_FILE = LOG_DIR / "backend.log"
+
+from django.utils import timezone as django_timezone
+
+class TimezoneFormatter(logging.Formatter):
+    """Custom formatter that uses Django's TIME_ZONE setting"""
+    def formatTime(self, record, datefmt=None):
+        # Convert the record's timestamp to Django's timezone
+        dt = datetime.fromtimestamp(record.created, tz=django_timezone.get_current_timezone())
+        if datefmt:
+            return dt.strftime(datefmt)
+        return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "()": TimezoneFormatter,
+            "format": "%(asctime)s %(levelname)s %(name)s: %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S %Z",
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": str(BACKEND_LOG_FILE),
+            "formatter": "standard",
+        },
+    },
+    "root": {
+        "handlers": ["console", "file"],
+        "level": os.getenv("LOG_LEVEL", "INFO"),
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
+            "propagate": False,
+        }
+    },
+}
 

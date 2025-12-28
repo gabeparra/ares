@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import './ChatPanel.css'
 
 function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChange }) {
@@ -17,6 +20,24 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
   const inputRef = useRef(null)
   const fileInputRef = useRef(null)
   const sessionIdRef = useRef(sessionId)
+  
+  // TTS state
+  const [ttsPlaying, setTtsPlaying] = useState(null) // index of message being played
+  const [ttsAudio, setTtsAudio] = useState(null)
+  const [ttsLoading, setTtsLoading] = useState(null) // index of message loading
+  const [ttsSettingsOpen, setTtsSettingsOpen] = useState(false)
+  const [ttsConfig, setTtsConfig] = useState({
+    stability: 0.5,
+    similarity_boost: 0.75,
+    style: 0.0,
+    voice_id: '',
+    model_id: 'eleven_multilingual_v2',
+    api_configured: false,
+  })
+  const [ttsVoices, setTtsVoices] = useState([])
+  const [ttsConfigLoading, setTtsConfigLoading] = useState(false)
+  const [ttsConfigDirty, setTtsConfigDirty] = useState(false)
+  const [ttsConfigSaved, setTtsConfigSaved] = useState(false)
 
   useEffect(() => {
     sessionIdRef.current = sessionId
@@ -63,6 +84,37 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Load TTS config and voices on mount
+  useEffect(() => {
+    const loadTtsConfig = async () => {
+      try {
+        const headers = {}
+        if (window.authToken) {
+          headers['Authorization'] = `Bearer ${window.authToken}`
+        }
+        
+        const [configRes, voicesRes] = await Promise.all([
+          fetch('/api/v1/tts/config', { headers }),
+          fetch('/api/v1/tts/voices', { headers }),
+        ])
+        
+        if (configRes.ok) {
+          const config = await configRes.json()
+          setTtsConfig(config)
+        }
+        
+        if (voicesRes.ok) {
+          const data = await voicesRes.json()
+          setTtsVoices(data.voices || [])
+        }
+      } catch (err) {
+        console.error('Failed to load TTS config:', err)
+      }
+    }
+    
+    loadTtsConfig()
+  }, [])
+
   const handleFileSelect = (e) => {
     const file = e.target.files[0]
     if (file) {
@@ -86,6 +138,190 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
       reader.onerror = reject
       reader.readAsText(file)
     })
+  }
+
+  // TTS Cache helper functions
+  const getCacheKey = (text, voiceId, modelId, stability, similarityBoost, style) => {
+    return `tts_${btoa(text).slice(0, 50)}_${voiceId || 'default'}_${modelId}_${stability}_${similarityBoost}_${style}`
+  }
+
+  const getCachedAudio = async (cacheKey) => {
+    try {
+      const cache = await caches.open('tts-audio-cache')
+      const cachedResponse = await cache.match(cacheKey)
+      if (cachedResponse) {
+        const blob = await cachedResponse.blob()
+        return URL.createObjectURL(blob)
+      }
+    } catch (error) {
+      console.warn('Cache read error:', error)
+    }
+    return null
+  }
+
+  const cacheAudio = async (cacheKey, blob) => {
+    try {
+      const cache = await caches.open('tts-audio-cache')
+      await cache.put(cacheKey, new Response(blob, {
+        headers: { 'Content-Type': 'audio/mpeg' }
+      }))
+    } catch (error) {
+      console.warn('Cache write error:', error)
+    }
+  }
+
+  // TTS: Play message audio
+  const playTTS = async (text, messageIndex) => {
+    // Stop any currently playing audio
+    if (ttsAudio) {
+      ttsAudio.pause()
+      ttsAudio.currentTime = 0
+      setTtsAudio(null)
+      setTtsPlaying(null)
+    }
+    
+    // If clicking on the same message that was playing, just stop
+    if (ttsPlaying === messageIndex) {
+      return
+    }
+    
+    setTtsLoading(messageIndex)
+    
+    try {
+      // Strip markdown for cleaner speech
+      const cleanText = text
+        .replace(/```[\s\S]*?```/g, 'code block')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/#+\s/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/\n+/g, '. ')
+        .trim()
+      
+      // Create cache key
+      const cacheKey = getCacheKey(
+        cleanText,
+        ttsConfig.voice_id || 'default',
+        ttsConfig.model_id || 'eleven_multilingual_v2',
+        ttsConfig.stability,
+        ttsConfig.similarity_boost,
+        ttsConfig.style
+      )
+      
+      // Check cache first
+      let audioUrl = await getCachedAudio(cacheKey)
+      let isFromCache = !!audioUrl
+      
+      if (!audioUrl) {
+        // Not in cache, fetch from API
+        const headers = { 'Content-Type': 'application/json' }
+        if (window.authToken) {
+          headers['Authorization'] = `Bearer ${window.authToken}`
+        }
+        
+        const response = await fetch('/api/v1/tts', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            text: cleanText,
+            voice_id: ttsConfig.voice_id || undefined,
+            model_id: ttsConfig.model_id || 'eleven_multilingual_v2',
+            stability: ttsConfig.stability,
+            similarity_boost: ttsConfig.similarity_boost,
+            style: ttsConfig.style,
+          }),
+        })
+        
+        if (!response.ok) {
+          const error = await response.json()
+          console.error('TTS error:', error)
+          setTtsLoading(null)
+          return
+        }
+        
+        const audioBlob = await response.blob()
+        audioUrl = URL.createObjectURL(audioBlob)
+        
+        // Cache the audio for future use
+        await cacheAudio(cacheKey, audioBlob)
+      }
+      
+      const audio = new Audio(audioUrl)
+      
+      audio.onended = () => {
+        setTtsPlaying(null)
+        setTtsAudio(null)
+        // Only revoke URL if it was newly created (not from cache)
+        if (!isFromCache) {
+          URL.revokeObjectURL(audioUrl)
+        }
+      }
+      
+      audio.onerror = () => {
+        setTtsPlaying(null)
+        setTtsAudio(null)
+        if (!isFromCache) {
+          URL.revokeObjectURL(audioUrl)
+        }
+      }
+      
+      setTtsAudio(audio)
+      setTtsPlaying(messageIndex)
+      setTtsLoading(null)
+      audio.play()
+      
+    } catch (error) {
+      console.error('TTS error:', error)
+      setTtsLoading(null)
+    }
+  }
+
+  // Save TTS configuration
+  const saveTtsConfig = async () => {
+    setTtsConfigLoading(true)
+    setTtsConfigSaved(false)
+    try {
+      const headers = { 'Content-Type': 'application/json' }
+      if (window.authToken) {
+        headers['Authorization'] = `Bearer ${window.authToken}`
+      }
+      
+      const configToSave = {
+        voice_id: ttsConfig.voice_id,
+        model_id: ttsConfig.model_id,
+        stability: ttsConfig.stability,
+        similarity_boost: ttsConfig.similarity_boost,
+        style: ttsConfig.style,
+      }
+      
+      console.log('Saving TTS config:', configToSave)
+      
+      const response = await fetch('/api/v1/tts/config', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(configToSave),
+      })
+      
+      if (response.ok) {
+        setTtsConfigDirty(false)
+        setTtsConfigSaved(true)
+        setTimeout(() => setTtsConfigSaved(false), 2000)
+      } else {
+        console.error('Failed to save TTS config:', await response.text())
+      }
+    } catch (error) {
+      console.error('Failed to save TTS config:', error)
+    } finally {
+      setTtsConfigLoading(false)
+    }
+  }
+  
+  // Update local TTS config and mark as dirty
+  const updateTtsConfig = (updates) => {
+    setTtsConfig(prev => ({ ...prev, ...updates }))
+    setTtsConfigDirty(true)
+    setTtsConfigSaved(false)
   }
 
   const handleSubmit = async (e) => {
@@ -161,6 +397,8 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
         type: 'assistant',
         content: data.response || '',
         timestamp: new Date(),
+        model: data.model || null,
+        provider: data.provider || null,
       }])
     } catch (error) {
       console.error('Failed to send message:', error)
@@ -413,8 +651,8 @@ Please provide an overview of the architecture and suggest improvements.`
             title="Per-session model"
           >
             <option value="">Model: default</option>
-            {availableModels.map((m) => (
-              <option key={m} value={m}>{m}</option>
+            {availableModels.map((m, index) => (
+              <option key={m?.name || index} value={m?.name || ''}>{m?.name || 'Unknown'}</option>
             ))}
           </select>
           <select
@@ -437,8 +675,113 @@ Please provide an overview of the architecture and suggest improvements.`
           >
             ➕ New
           </button>
+          <button
+            onClick={() => setTtsSettingsOpen(!ttsSettingsOpen)}
+            className={`tts-settings-button ${ttsSettingsOpen ? 'active' : ''}`}
+            title="Voice settings"
+          >
+            🔊
+          </button>
         </div>
       </div>
+      
+      {/* TTS Settings Panel */}
+      {ttsSettingsOpen && (
+        <div className="tts-settings-panel">
+          <div className="tts-settings-header">
+            <h3>Voice Settings</h3>
+            {!ttsConfig.api_configured && (
+              <span className="tts-warning">API key not configured</span>
+            )}
+          </div>
+          
+          <div className="tts-setting">
+            <label>Voice</label>
+            <select
+              value={ttsConfig.voice_id || ''}
+              onChange={(e) => updateTtsConfig({ voice_id: e.target.value })}
+              disabled={!ttsConfig.api_configured}
+            >
+              <option value="">Default (Rachel)</option>
+              {ttsVoices.map(v => (
+                <option key={v.voice_id} value={v.voice_id}>
+                  {v.name} ({v.category})
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="tts-setting">
+            <label>Model</label>
+            <select
+              value={ttsConfig.model_id || 'eleven_multilingual_v2'}
+              onChange={(e) => updateTtsConfig({ model_id: e.target.value })}
+              disabled={!ttsConfig.api_configured}
+            >
+              <option value="eleven_multilingual_v2">Multilingual v2 (recommended)</option>
+              <option value="eleven_turbo_v2_5">Turbo v2.5 (faster)</option>
+              <option value="eleven_turbo_v2">Turbo v2</option>
+              <option value="eleven_monolingual_v1">Monolingual v1 (legacy)</option>
+            </select>
+            <span className="tts-setting-hint">v2 models support Style parameter</span>
+          </div>
+          
+          <div className="tts-setting">
+            <label>Stability: {ttsConfig.stability.toFixed(2)}</label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={ttsConfig.stability}
+              onChange={(e) => updateTtsConfig({ stability: parseFloat(e.target.value) })}
+              disabled={!ttsConfig.api_configured}
+            />
+            <span className="tts-setting-hint">Higher = more consistent, Lower = more expressive</span>
+          </div>
+          
+          <div className="tts-setting">
+            <label>Similarity: {ttsConfig.similarity_boost.toFixed(2)}</label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={ttsConfig.similarity_boost}
+              onChange={(e) => updateTtsConfig({ similarity_boost: parseFloat(e.target.value) })}
+              disabled={!ttsConfig.api_configured}
+            />
+            <span className="tts-setting-hint">Higher = closer to original voice</span>
+          </div>
+          
+          <div className="tts-setting">
+            <label>Style: {ttsConfig.style.toFixed(2)}</label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={ttsConfig.style}
+              onChange={(e) => updateTtsConfig({ style: parseFloat(e.target.value) })}
+              disabled={!ttsConfig.api_configured}
+            />
+            <span className="tts-setting-hint">Higher = more expressive style</span>
+          </div>
+          
+          <div className="tts-settings-actions">
+            <button
+              onClick={saveTtsConfig}
+              disabled={!ttsConfigDirty || ttsConfigLoading || !ttsConfig.api_configured}
+              className={`tts-save-button ${ttsConfigSaved ? 'saved' : ''}`}
+            >
+              {ttsConfigLoading ? 'Saving...' : ttsConfigSaved ? 'Saved!' : ttsConfigDirty ? 'Save Settings' : 'No Changes'}
+            </button>
+            {ttsConfigDirty && (
+              <span className="tts-unsaved-hint">Unsaved changes</span>
+            )}
+          </div>
+        </div>
+      )}
       
       {isNewSession && messages.length === 0 && (
         <div className="session-info-banner">
@@ -464,11 +807,113 @@ Please provide an overview of the architecture and suggest improvements.`
                   }
                   {msg.source === 'telegram' && ' 📱'}
                   {msg.source === 'chatgpt' && ' 🌐'}
+                  {msg.type === 'assistant' && msg.provider && (
+                    <span className="message-provider" title={msg.model || ''}>
+                      {msg.provider === 'openrouter' ? ' ☁️' : ' 🏠'}
+                    </span>
+                  )}
                 </span>
-                <span className="message-time">{formatTime(msg.timestamp)}</span>
+                <div className="message-actions">
+                  {msg.type === 'assistant' && (
+                    <button
+                      className={`tts-button ${ttsPlaying === idx ? 'playing' : ''} ${ttsLoading === idx ? 'loading' : ''}`}
+                      onClick={() => playTTS(msg.content, idx)}
+                      title={ttsPlaying === idx ? 'Stop' : 'Read aloud'}
+                      disabled={ttsLoading === idx}
+                    >
+                      {ttsLoading === idx ? '⏳' : ttsPlaying === idx ? '⏹' : '🔊'}
+                    </button>
+                  )}
+                  <span className="message-time">{formatTime(msg.timestamp)}</span>
+                </div>
               </div>
               <div className="message-content">
-                {msg.content}
+                {msg.type === 'assistant' ? (
+                  <ReactMarkdown
+                    components={{
+                      code({ inline, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || '')
+                        const codeString = String(children).replace(/\n$/, '')
+                        return !inline && match ? (
+                          <SyntaxHighlighter
+                            style={oneDark}
+                            language={match[1]}
+                            PreTag="div"
+                            customStyle={{
+                              margin: '0.5em 0',
+                              borderRadius: '6px',
+                              fontSize: '0.9em',
+                            }}
+                            {...props}
+                          >
+                            {codeString}
+                          </SyntaxHighlighter>
+                        ) : !inline && codeString.includes('\n') ? (
+                          <SyntaxHighlighter
+                            style={oneDark}
+                            language="text"
+                            PreTag="div"
+                            customStyle={{
+                              margin: '0.5em 0',
+                              borderRadius: '6px',
+                              fontSize: '0.9em',
+                            }}
+                            {...props}
+                          >
+                            {codeString}
+                          </SyntaxHighlighter>
+                        ) : (
+                          <code className="inline-code" {...props}>
+                            {children}
+                          </code>
+                        )
+                      },
+                      pre({ children }) {
+                        return <>{children}</>
+                      },
+                      p({ children }) {
+                        return <p className="markdown-p">{children}</p>
+                      },
+                      ul({ children }) {
+                        return <ul className="markdown-ul">{children}</ul>
+                      },
+                      ol({ children }) {
+                        return <ol className="markdown-ol">{children}</ol>
+                      },
+                      li({ children }) {
+                        return <li className="markdown-li">{children}</li>
+                      },
+                      h1({ children }) {
+                        return <h1 className="markdown-h1">{children}</h1>
+                      },
+                      h2({ children }) {
+                        return <h2 className="markdown-h2">{children}</h2>
+                      },
+                      h3({ children }) {
+                        return <h3 className="markdown-h3">{children}</h3>
+                      },
+                      blockquote({ children }) {
+                        return <blockquote className="markdown-blockquote">{children}</blockquote>
+                      },
+                      a({ href, children }) {
+                        return <a href={href} className="markdown-link" target="_blank" rel="noopener noreferrer">{children}</a>
+                      },
+                      table({ children }) {
+                        return <table className="markdown-table">{children}</table>
+                      },
+                      th({ children }) {
+                        return <th className="markdown-th">{children}</th>
+                      },
+                      td({ children }) {
+                        return <td className="markdown-td">{children}</td>
+                      },
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
+                ) : (
+                  msg.content
+                )}
                 {msg.file && (
                   <div className="file-attachment">
                     <div className="file-info">
@@ -504,6 +949,22 @@ Please provide an overview of the architecture and suggest improvements.`
       </div>
 
       <form onSubmit={handleSubmit} className="chat-input-form">
+        {selectedFile && (
+          <div className="selected-file">
+            <div className="file-info">
+              📎 <strong>{selectedFile.name}</strong> ({(selectedFile.size / 1024).toFixed(1)} KB)
+            </div>
+            <button
+              type="button"
+              onClick={handleFileRemove}
+              className="file-remove-button"
+              title="Remove file"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         <div className="chat-input-container">
           <input
             ref={inputRef}
@@ -538,24 +999,6 @@ Please provide an overview of the architecture and suggest improvements.`
           >
             💻
           </button>
-        </div>
-
-        {selectedFile && (
-          <div className="selected-file">
-            <div className="file-info">
-              📎 <strong>{selectedFile.name}</strong> ({(selectedFile.size / 1024).toFixed(1)} KB)
-            </div>
-            <button
-              type="button"
-              onClick={handleFileRemove}
-              className="file-remove-button"
-              title="Remove file"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
           <button
             type="submit"
             className="chat-send-button"
@@ -563,6 +1006,7 @@ Please provide an overview of the architecture and suggest improvements.`
           >
             Send
           </button>
+        </div>
       </form>
     </div>
   )

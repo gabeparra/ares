@@ -157,6 +157,18 @@ ARES explores the opposite approach:
 
 ---
 
+## Documentation
+
+Additional documentation is available in the `docs/` folder:
+
+* `docs/SETUP.md` - Installation and setup instructions
+* `docs/DOCKER.md` - Docker deployment guide
+* `docs/SERVICE.md` - Systemd service configuration
+* `docs/TEST_AUTH.md` - Authentication testing guide
+* `docs/API_INSTRUCTIONS.txt` - Gemma API endpoint reference
+
+---
+
 ## License
 
 MIT (subject to change)

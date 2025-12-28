@@ -1,10 +1,10 @@
 #!/bin/bash
-# Installation script for Glup on RTX 4090 with Ollama GPU support
+# Installation script for Ares on RTX 4090 with Ollama GPU support
 
 set -e
 
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║  Glup Installation - RTX 4090 GPU Configuration      ║"
+echo "║  Ares Installation - RTX 4090 GPU Configuration      ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
 
@@ -90,8 +90,8 @@ echo "4. Start Ollama manually when needed:"
 echo "   ./scripts/control_ollama.sh start"
 echo "   # Or: ollama serve &"
 echo ""
-echo "5. Run Glup:"
-echo "   python -m caption_ai --web"
+echo "5. Run Ares:"
+echo "   python manage.py runserver 0.0.0.0:8000"
 echo ""
 echo "To stop Ollama:"
 echo "   ./scripts/control_ollama.sh stop"
