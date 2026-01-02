@@ -1,5 +1,32 @@
 .agent-panel {
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
+}
+
+.agent-panel::-webkit-scrollbar {
+  width: 12px;
+}
+
+.agent-panel::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+}
+
+.agent-panel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  border: 2px solid rgba(26, 26, 32, 0.98);
+}
+
+.agent-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .agent-header {
@@ -70,6 +97,8 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-height: 0;
+  flex: 1;
 }
 
 .agent-section {
@@ -311,6 +340,39 @@
   font-size: 0.85em;
 }
 
+/* Agent logs container */
+.agent-logs-container {
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: #1a1a1a;
+  padding: 12px;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85em;
+  word-wrap: break-word;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
+}
+
+.agent-logs-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.agent-logs-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.agent-logs-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.agent-logs-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
 .log-entry {
   padding: 8px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -352,5 +414,125 @@
 .agent-disabled-text {
   color: rgba(255, 255, 255, 0.6);
   font-size: 1.1em;
+}
+
+/* Header controls container */
+.agent-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Polling controls */
+.agent-polling-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.agent-polling-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1em;
+  transition: all 0.15s ease;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.agent-polling-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.agent-polling-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.agent-polling-btn.active {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+}
+
+.agent-polling-btn.active:hover {
+  background: rgba(74, 222, 128, 0.25);
+}
+
+.agent-polling-btn.paused {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+}
+
+.agent-polling-btn.paused:hover {
+  background: rgba(251, 146, 60, 0.25);
+}
+
+.agent-polling-btn.refresh {
+  font-size: 1.2em;
+}
+
+.agent-polling-btn.refresh:hover:not(:disabled) {
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
+}
+
+.agent-checking-indicator {
+  color: #ffd700;
+  font-size: 0.7em;
+  margin-left: 4px;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* Offline content */
+.agent-offline-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.agent-offline-notice {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.agent-polling-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.9em;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.polling-indicator {
+  font-size: 0.8em;
+}
+
+.polling-indicator.active {
+  color: #4ade80;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.polling-indicator.paused {
+  color: #fb923c;
+}
+
+/* Small button variant */
+.agent-btn.small {
+  padding: 6px 12px;
+  font-size: 0.85em;
 }
 

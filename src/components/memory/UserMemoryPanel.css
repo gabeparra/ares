@@ -2,7 +2,9 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg-primary, #0a0a0f);
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
   color: var(--text-primary, #e4e4e7);
 }
 
@@ -433,6 +435,263 @@
 }
 
 .pref-delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* Memory Spots Styles */
+.memory-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color, #27272a);
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.memory-section-header h3 {
+  margin: 0;
+}
+
+.spot-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.spot-filters {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.extract-memories-button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--accent-color, #3b82f6);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent-color, #3b82f6);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.extract-memories-button:hover:not(:disabled) {
+  background: var(--accent-color, #3b82f6);
+  color: white;
+}
+
+.extract-memories-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spot-filter-select {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--border-color, #27272a);
+  border-radius: 6px;
+  background: var(--bg-primary, #0a0a0f);
+  color: var(--text-primary, #e4e4e7);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.memory-spots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.memory-spot-card {
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--bg-secondary, #111118);
+  border-left: 3px solid #3b82f6;
+  transition: all 0.2s ease;
+}
+
+.memory-spot-card:hover {
+  background: var(--bg-tertiary, #18181b);
+}
+
+.spot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.spot-type-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  background: var(--bg-primary, #0a0a0f);
+  font-size: 0.8125rem;
+}
+
+.spot-type-icon {
+  font-size: 1rem;
+}
+
+.spot-type-label {
+  font-weight: 500;
+  color: var(--text-primary, #e4e4e7);
+}
+
+.spot-status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.spot-content {
+  font-size: 0.875rem;
+  color: var(--text-primary, #e4e4e7);
+  line-height: 1.5;
+  margin-bottom: 0.75rem;
+}
+
+.spot-metadata {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  margin-bottom: 0.75rem;
+  border-radius: 6px;
+  background: var(--bg-primary, #0a0a0f);
+  font-size: 0.8125rem;
+}
+
+.spot-meta-key {
+  font-weight: 600;
+  color: var(--text-primary, #e4e4e7);
+}
+
+.spot-meta-value {
+  color: var(--text-secondary, #a1a1aa);
+}
+
+.spot-metrics {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color, #27272a);
+}
+
+.spot-metric {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.metric-label {
+  color: var(--text-muted, #71717a);
+}
+
+.metric-value {
+  font-weight: 600;
+  color: var(--text-primary, #e4e4e7);
+}
+
+.spot-source {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: var(--bg-primary, #0a0a0f);
+  font-size: 0.8125rem;
+}
+
+.spot-source-label {
+  font-weight: 600;
+  color: var(--text-muted, #71717a);
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.spot-source-text {
+  color: var(--text-secondary, #a1a1aa);
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.spot-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.spot-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-muted, #71717a);
+}
+
+.spot-date {
+  font-size: 0.75rem;
+}
+
+.spot-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.spot-action-button {
+  padding: 0.375rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.spot-action-button.spot-apply {
+  background: #10b981;
+  color: white;
+}
+
+.spot-action-button.spot-apply:hover {
+  background: #059669;
+}
+
+.spot-action-button.spot-reject {
+  background: transparent;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+}
+
+.spot-action-button.spot-reject:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.spot-applied-badge,
+.spot-rejected-badge {
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.spot-applied-badge {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.spot-rejected-badge {
   background: rgba(239, 68, 68, 0.2);
   color: #ef4444;
 }

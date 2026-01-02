@@ -172,6 +172,33 @@ class AgentClient:
             logger.error(f"Error getting resources: {e}")
             return {"error": str(e)}
     
+    def get_logs(self) -> Dict[str, Any]:
+        """
+        Get agent logs.
+        
+        Returns:
+            Dict with log data
+        """
+        try:
+            client = self._get_client()
+            response = client.get(
+                f"{self.base_url}/logs",
+                headers=self._headers(),
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.ConnectError:
+            return {
+                "error": f"Cannot connect to agent at {self.base_url}",
+            }
+        except httpx.HTTPStatusError as e:
+            return {
+                "error": f"Agent returned {e.response.status_code}: {e.response.text}",
+            }
+        except Exception as e:
+            logger.error(f"Error getting logs: {e}")
+            return {"error": str(e)}
+    
     def get_actions(self) -> List[Dict[str, Any]]:
         """
         Get list of available actions.
@@ -215,17 +242,20 @@ class AgentClient:
         
         try:
             client = self._get_client()
+            request_data = {
+                "action": action_id,
+                "parameters": parameters or {},
+            }
+            logger.info(f"Sending action request to {self.base_url}/action: {request_data}")
             response = client.post(
                 f"{self.base_url}/action",
                 headers=self._headers(),
-                json={
-                    "action": action_id,
-                    "parameters": parameters or {},
-                },
+                json=request_data,
             )
             response.raise_for_status()
             result = response.json()
             result["action"] = action_id
+            logger.info(f"Agent response for {action_id}: {result}")
             return result
         except httpx.ConnectError:
             return {
@@ -271,20 +301,39 @@ class AgentClient:
 
 def get_agent_client() -> Optional[AgentClient]:
     """
-    Get an agent client configured from settings.
+    Get an agent client configured from settings or environment variables.
+    
+    Priority:
+    1. Database settings (from web UI)
+    2. Environment variables (fallback)
     
     Returns:
         AgentClient if configured and enabled, None otherwise
     """
     try:
+        import os
         from api.utils import _get_setting
         
+        # Check if agent is enabled (database setting takes priority)
         agent_enabled = _get_setting("agent_enabled")
+        if not agent_enabled:
+            # Fallback to environment variable
+            agent_enabled = os.getenv("ARES_AGENT_ENABLED", "").lower()
+        
         if agent_enabled != "true":
             return None
         
+        # Get agent URL (database setting takes priority)
         agent_url = _get_setting("agent_url")
+        if not agent_url:
+            # Fallback to environment variable
+            agent_url = os.getenv("ARES_AGENT_URL", "")
+        
+        # Get agent API key (database setting takes priority)
         agent_api_key = _get_setting("agent_api_key")
+        if not agent_api_key:
+            # Fallback to environment variable
+            agent_api_key = os.getenv("ARES_AGENT_API_KEY", "")
         
         if not agent_url or not agent_api_key:
             return None

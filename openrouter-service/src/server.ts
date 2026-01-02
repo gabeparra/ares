@@ -3,15 +3,42 @@ import cors from "cors";
 import { OpenRouter } from "@openrouter/sdk";
 
 const app = express();
-app.use(cors());
+
+// SECURITY: Restrict CORS to specific origins only
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://aresai.space',
+  'https://www.aresai.space'
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json({ limit: "10mb" }));
 
 const PORT = process.env.OPENROUTER_SERVICE_PORT || 3100;
 const API_KEY = process.env.OPENROUTER_API_KEY;
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'change-me-in-production';
 
 if (!API_KEY) {
   console.error("OPENROUTER_API_KEY environment variable is required");
   process.exit(1);
+}
+
+if (INTERNAL_API_KEY === 'change-me-in-production') {
+  console.warn("WARNING: Using default INTERNAL_API_KEY. Set INTERNAL_API_KEY environment variable for production!");
 }
 
 const client = new OpenRouter({
@@ -43,10 +70,25 @@ interface ModelsResponse {
   }>;
 }
 
-// Health check endpoint
+// SECURITY: Authentication middleware
+const authenticate = (req: Request, res: Response, next: NextFunction) => {
+  const apiKey = req.headers['x-api-key'] as string;
+
+  if (!apiKey || apiKey !== INTERNAL_API_KEY) {
+    res.status(401).json({ error: 'Unauthorized - Invalid or missing API key' });
+    return;
+  }
+
+  next();
+};
+
+// Health check endpoint (no auth required)
 app.get("/health", (_req: Request, res: Response) => {
   res.json({ status: "ok", service: "openrouter-service" });
 });
+
+// SECURITY: Apply authentication to all API endpoints
+app.use('/v1', authenticate);
 
 // Chat completions endpoint (non-streaming)
 app.post("/v1/chat/completions", async (req: Request, res: Response) => {
@@ -58,7 +100,7 @@ app.post("/v1/chat/completions", async (req: Request, res: Response) => {
       return;
     }
 
-    const modelToUse = model || process.env.OPENROUTER_MODEL || "openai/gpt-3.5-turbo";
+    const modelToUse = model || process.env.OPENROUTER_MODEL || "deepseek/deepseek-chat";
 
     if (stream) {
       // Streaming response

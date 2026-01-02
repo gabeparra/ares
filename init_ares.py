@@ -7,10 +7,10 @@ Sets up ARES identity by:
 2. Populating initial self-memory entries
 
 Usage:
-    python init_ares.py --all      # Full setup (rebuild model + init identity)
-    python init_ares.py --rebuild  # Rebuild Ollama model only
-    python init_ares.py --init     # Initialize identity only
-    python init_ares.py --show     # Display current identity
+    python3 init_ares.py --all      # Full setup (rebuild model + init identity)
+    python3 init_ares.py --rebuild  # Rebuild Ollama model only
+    python3 init_ares.py --init     # Initialize identity only
+    python3 init_ares.py --show     # Display current identity
 """
 
 import argparse

@@ -15,6 +15,7 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
     top_p: 0.9,
     top_k: 40,
     repeat_penalty: 1.1,
+    num_gpu: 40,
   })
   const [systemPrompt, setSystemPrompt] = useState('')
   const [promptLoading, setPromptLoading] = useState(false)
@@ -25,7 +26,12 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
     agent_api_key: '',
     agent_enabled: false,
   })
+  const [agentApiKeyChanged, setAgentApiKeyChanged] = useState(false)
   const [agentLoading, setAgentLoading] = useState(false)
+  const [tabVisibility, setTabVisibility] = useState({
+    sdapi: true,
+  })
+  const [tabVisibilityLoading, setTabVisibilityLoading] = useState(false)
 
   useEffect(() => {
     if (propProvider) {
@@ -36,6 +42,7 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
     loadPrompt()
     loadModelConfig()
     loadAgentConfig()
+    loadTabVisibility()
   }, [])
 
   useEffect(() => {
@@ -318,12 +325,59 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
         const data = await response.json()
         setAgentConfig({
           agent_url: data.agent_url || '',
-          agent_api_key: data.agent_api_key || '',
+          agent_api_key: '', // Don't populate password field for security
           agent_enabled: data.agent_enabled || false,
         })
+        setAgentApiKeyChanged(false) // Reset changed flag when loading
       }
     } catch (err) {
       console.error('Failed to load agent config:', err)
+    }
+  }
+
+  const loadTabVisibility = async () => {
+    try {
+      const headers = {}
+      if (window.authToken) {
+        headers['Authorization'] = `Bearer ${window.authToken}`
+      }
+      const response = await fetch('/api/v1/settings/tab-visibility', { headers })
+      if (response.ok) {
+        const data = await response.json()
+        if (data.visibility) {
+          setTabVisibility(data.visibility)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load tab visibility settings:', err)
+    }
+  }
+
+  const saveTabVisibility = async () => {
+    setTabVisibilityLoading(true)
+    try {
+      const headers = {
+        'Content-Type': 'application/json',
+      }
+      if (window.authToken) {
+        headers['Authorization'] = `Bearer ${window.authToken}`
+      }
+      const response = await fetch('/api/v1/settings/tab-visibility', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ visibility: tabVisibility }),
+      })
+      if (response.ok) {
+        alert('Tab visibility settings saved successfully. Please refresh the page to see changes.')
+      } else {
+        const data = await response.json()
+        alert(`Failed to save tab visibility: ${data.error || 'Unknown error'}`)
+      }
+    } catch (err) {
+      console.error('Failed to save tab visibility:', err)
+      alert('Failed to save tab visibility settings')
+    } finally {
+      setTabVisibilityLoading(false)
     }
   }
 
@@ -336,13 +390,22 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
       if (window.authToken) {
         headers['Authorization'] = `Bearer ${window.authToken}`
       }
+      // Only send API key if it was changed
+      // If changed and empty, send empty string to clear it
+      // If not changed, don't send it (preserve existing)
+      const configToSave = { ...agentConfig }
+      if (!agentApiKeyChanged) {
+        delete configToSave.agent_api_key
+      }
       const response = await fetch('/api/v1/settings/agent', {
         method: 'POST',
         headers,
-        body: JSON.stringify(agentConfig),
+        body: JSON.stringify(configToSave),
       })
       if (response.ok) {
         alert('Agent configuration saved successfully')
+        setAgentApiKeyChanged(false) // Reset changed flag after successful save
+        setAgentConfig(prev => ({ ...prev, agent_api_key: '' })) // Clear password field
       } else {
         const data = await response.json()
         alert(`Failed to save agent configuration: ${data.error || 'Unknown error'}`)
@@ -360,6 +423,10 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
       ...prev,
       [key]: value
     }))
+    // Track if API key was changed
+    if (key === 'agent_api_key') {
+      setAgentApiKeyChanged(true)
+    }
   }
 
   const restartService = async (service) => {
@@ -556,6 +623,23 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
           </div>
           <small>Penalty for repeating tokens (1.0 = no penalty, 2.0 = strong penalty)</small>
         </label>
+
+        <label className="setting-label">
+          <span>Number of GPU Layers</span>
+          <div className="slider-container">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value={modelConfig.num_gpu}
+              onChange={(e) => handleConfigChange('num_gpu', e.target.value)}
+              className="slider"
+            />
+            <span className="slider-value">{modelConfig.num_gpu}</span>
+          </div>
+          <small>Number of layers to offload to GPU (0 = CPU only, higher = more GPU usage)</small>
+        </label>
       </div>
 
       <div className="settings-section">
@@ -629,10 +713,10 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
             value={agentConfig.agent_api_key}
             onChange={(e) => handleAgentConfigChange('agent_api_key', e.target.value)}
             className="agent-input"
-            placeholder="Enter shared secret"
+            placeholder={agentApiKeyChanged ? "Enter new shared secret" : "Leave empty to keep existing key"}
             disabled={agentLoading}
           />
-          <small>Shared secret for agent authentication</small>
+          <small>Shared secret for agent authentication. Leave empty to keep existing key.</small>
         </label>
 
         <label className="setting-label checkbox-label">
@@ -661,6 +745,33 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
             type="button"
           >
             {agentLoading ? 'Saving...' : 'Save Agent Config'}
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h3>Tab Visibility</h3>
+        <p className="section-description">
+          Control which tabs are visible in the main interface.
+        </p>
+        <div className="settings-row">
+          <label className="setting-label checkbox-label">
+            <input
+              type="checkbox"
+              checked={tabVisibility.sdapi !== false}
+              onChange={(e) => {
+                setTabVisibility({ ...tabVisibility, sdapi: e.target.checked })
+              }}
+            />
+            <span>Show SD API tab</span>
+          </label>
+          <button
+            onClick={saveTabVisibility}
+            className="save-btn"
+            disabled={tabVisibilityLoading}
+            type="button"
+          >
+            {tabVisibilityLoading ? 'Saving...' : 'Save Tab Settings'}
           </button>
         </div>
       </div>

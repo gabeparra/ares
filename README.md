@@ -47,15 +47,18 @@ ARES prioritizes **running on your own hardware**, falls back to cloud or extern
 ## High-Level Architecture
 
 ```
-Clients (Telegram / Discord / Web)
+Clients (Telegram / Web / Discord*)
                 ↓
         ARES Gateway (Django)
    Auth • Routing • Memory • Logs
         ↓        ↓        ↓
-   Local LLM   Cloud LLM   External APIs
-   (Ollama)    (vLLM)     (OpenAI / Grok)
+   Local LLM   External LLM   Additional Services
+   (Ollama)    (OpenRouter)   (Calendar, TTS, STT, SD)
+   (fallback)  (Claude, GPT-4, etc.)
         ↓
-   System Tools (Agent Zero, OS control)
+   System Tools (Agent control, OS control*)
+   
+* Discord and OS control features are planned
 ```
 
 All clients communicate **only** with the ARES Gateway.
@@ -63,27 +66,57 @@ Inference backends and system tools are never exposed directly.
 
 ---
 
-## Features (Current + Planned)
+## Features
 
-### Implemented / In Progress
+### Core Infrastructure
 
-* Unified `/v1/chat` API
-* Local LLM inference (Ollama)
-* Telegram integration
+* Unified `/api/v1/chat` API
+* LLM routing (OpenRouter primary, Ollama fallback)
+* Auth0 authentication (OIDC + MFA)
 * Web dashboard (Vite + React)
-* Auth0 authentication (MFA)
-* API keys for bots
-* Request logging
+* Request logging and audit trails
 
-### Planned
+### LLM Integration
 
-* Discord bot
-* Cloud GPU fallback (vLLM)
-* External LLM escalation (ChatGPT / Grok)
+* Local LLM inference (Ollama)
+* External LLM via OpenRouter (Claude, GPT-4, and 100+ models)
+* Automatic fallback routing (OpenRouter → Ollama)
+* Model selection and configuration
+
+### Client Integrations
+
+* Telegram bot integration
+* Web dashboard with real-time chat
+* Account linking system
+
+### Memory & Context
+
+* AI self-memory system (identity, milestones, observations)
+* User memory (facts, preferences)
+* Memory extraction from conversations
+* Conversation summaries
+* Retrieval-augmented generation (RAG) with ChromaDB
+* Code indexing and codebase memory
+* Memory revision and auto-apply system
+
+### Additional Features
+
+* Google Calendar integration (OAuth, event sync, scheduled tasks)
+* Text-to-Speech (ElevenLabs)
+* Speech-to-Text (OpenAI Whisper)
+* Agent control (4090 rig management)
+* Stable Diffusion API integration
+* Image upscaling
+* Training data export
+* Ollama management API
+* Code browser and revision system
+
+### Planned Features
+
+* Discord bot integration
+* Cloud GPU fallback (vLLM) - alternative to OpenRouter
 * OS-level control (Wake-on-LAN, reboot, next-boot selection)
 * Agent Zero integration (proposal → approval → execution)
-* Conversation memory + summaries
-* Retrieval-augmented generation (docs, notes, optional news)
 
 ---
 
@@ -110,18 +143,18 @@ ARES separates **human control** from **service automation**.
 
 ---
 
-## MVP Scope (Hard Line)
+## MVP Status
 
-ARES is considered **MVP-complete** when:
+ARES MVP milestones:
 
-* Local LLM works via `/v1/chat`
-* Telegram and web dashboard both function
-* Auth0 + API key auth enforced
-* Local ↔ external LLM routing works
-* Wake / shutdown / next-boot commands work with approval
-* Logs record every request and routing decision
+* ✅ Local LLM works via `/api/v1/chat`
+* ✅ Telegram and web dashboard both function
+* ✅ Auth0 + API key auth enforced
+* ✅ Local ↔ external LLM routing works (OpenRouter + Ollama)
+* ✅ Logs record every request and routing decision
+* ⏳ Wake / shutdown / next-boot commands (partial - service restart exists)
 
-Everything else is **post-MVP**.
+**Status:** MVP core features are complete. The project has moved well beyond MVP with extensive memory, RAG, and integration features.
 
 ---
 
@@ -131,10 +164,14 @@ Everything else is **post-MVP**.
 * **Frontend:** Vite + React
 * **Auth:** Auth0 (OIDC, MFA)
 * **Local LLM:** Ollama
-* **Cloud LLM (planned):** vLLM
-* **Bots:** Telegram Bot API, Discord.js
-* **OS Control:** GRUB, Wake-on-LAN, Agent Zero
+* **External LLM:** OpenRouter (Claude, GPT-4, and 100+ models)
+* **RAG:** ChromaDB
+* **TTS:** ElevenLabs
+* **STT:** OpenAI Whisper
+* **Calendar:** Google Calendar API
+* **Bots:** Telegram Bot API
 * **Database:** SQLite (dev), Postgres (planned)
+* **OS Control (planned):** GRUB, Wake-on-LAN, Agent Zero
 
 ---
 
@@ -159,13 +196,24 @@ ARES explores the opposite approach:
 
 ## Documentation
 
-Additional documentation is available in the `docs/` folder:
+All documentation is organized in the [`internaldocuments/`](internaldocuments/) folder.
 
-* `docs/SETUP.md` - Installation and setup instructions
-* `docs/DOCKER.md` - Docker deployment guide
-* `docs/SERVICE.md` - Systemd service configuration
-* `docs/TEST_AUTH.md` - Authentication testing guide
-* `docs/API_INSTRUCTIONS.txt` - Gemma API endpoint reference
+### Quick Start
+* **[Setup Guide](internaldocuments/SETUP.md)** - Installation and setup
+* **[Docker Guide](internaldocuments/DOCKER.md)** - Container deployment
+* **[Documentation Index](internaldocuments/INDEX.md)** - Complete documentation guide
+
+### Security & Deployment
+* **[Deployment Status](internaldocuments/security/DEPLOYMENT_STATUS_AND_NEXT_STEPS.md)** - Current status and next steps
+* [`internaldocuments/security/`](internaldocuments/security/) - Security audit, fixes, and guides
+
+### Features
+* [Google Calendar Integration](internaldocuments/GOOGLE_CALENDAR_SETUP.md)
+* [Memory System](internaldocuments/MEMORY_EXTRACTION.md)
+* [Code Memory](internaldocuments/CODE_MEMORY_SYSTEM.md)
+* [Authentication Testing](internaldocuments/TEST_AUTH.md)
+
+For a complete list, see **[internaldocuments/INDEX.md](internaldocuments/INDEX.md)**
 
 ---
 

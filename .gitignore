@@ -86,13 +86,8 @@ web/dist/
 dist/
 
 # Docker
-docker-compose.yml
 docker-compose.override.yml
-Dockerfile
 
-# Model files (large)
-gemma-3-4b-it-abliterated/
-gemma-3-4b-it-abliterated-GGUF/
 
 # Hugging Face
 .hf/

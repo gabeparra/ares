@@ -5,13 +5,23 @@
   min-height: 0;
   max-height: 100%;
   overflow: hidden;
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    rgba(26, 26, 32, 0.98) 0%,
+    rgba(22, 22, 28, 0.98) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
 }
 
 .tabs-header {
   display: flex;
   gap: 4px;
   border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-  padding: 8px 10px 0 10px;
+  padding: 12px 16px 0 16px;
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, 0.02) 0%,
@@ -19,7 +29,7 @@
   );
   overflow-x: auto;
   flex-shrink: 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 14px 14px 0 0;
 }
 
 .tabs-header::-webkit-scrollbar {
@@ -89,18 +99,25 @@
 .tabs-content {
   flex: 1;
   overflow: hidden;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   min-height: 0;
   max-height: 100%;
   margin-bottom: 0;
-  padding: 12px;
+  padding: 16px;
+  border-radius: 0 0 14px 14px;
+  box-sizing: border-box;
 }
 
 @media (max-width: 767px) {
   .tabs-header {
     gap: 2px;
-    padding: 0 4px;
+    padding: 8px 8px 0 8px;
+  }
+
+  .tabs-content {
+    padding: 12px;
   }
 
   .tab-button {

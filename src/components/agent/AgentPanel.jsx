@@ -1,32 +1,88 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { apiGet, apiPost } from "../../services/api";
 import "./AgentPanel.css";
+
+const AGENT_POLLING_KEY = 'ares_agent_auto_polling';
 
 function AgentPanel() {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
   const [message, setMessage] = useState(null);
   const [vramMode, setVramMode] = useState("low");
   const [actionLog, setActionLog] = useState([]);
+  const [agentLogs, setAgentLogs] = useState(null);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
+  
+  // Auto-polling state - persisted to localStorage
+  const [autoPolling, setAutoPolling] = useState(() => {
+    const stored = localStorage.getItem(AGENT_POLLING_KEY);
+    return stored === null ? true : stored === 'true';
+  });
+  
+  const intervalRef = useRef(null);
 
   const fetchStatus = useCallback(async () => {
+    if (checking) return;
+    
+    setChecking(true);
     try {
       const res = await apiGet("/api/v1/agent/status");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(errorData.error || `Status check failed: ${res.status}`);
+      }
       const data = await res.json();
+      console.log("[AgentPanel] Status response:", data);
       setStatus(data);
     } catch (e) {
+      console.error("[AgentPanel] Error fetching status:", e);
       setStatus({ status: "error", error: e.message });
     } finally {
       setLoading(false);
+      setChecking(false);
     }
+  }, [checking]);
+
+  // Toggle auto-polling and persist to localStorage
+  const toggleAutoPolling = useCallback(() => {
+    setAutoPolling(prev => {
+      const newValue = !prev;
+      localStorage.setItem(AGENT_POLLING_KEY, String(newValue));
+      return newValue;
+    });
   }, []);
 
-  useEffect(() => {
+  // Manual refresh
+  const manualRefresh = useCallback(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, 10000);
-    return () => clearInterval(interval);
   }, [fetchStatus]);
+
+  // Set up polling interval
+  useEffect(() => {
+    // Always do initial fetch
+    fetchStatus();
+    
+    // Clean up existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    
+    // Set up new interval only if auto-polling is enabled
+    if (autoPolling) {
+      intervalRef.current = setInterval(fetchStatus, 5000);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [autoPolling, fetchStatus]);
 
   const executeAction = async (actionId, params = {}, successMsg) => {
     setActionLoading(actionId);
@@ -38,30 +94,44 @@ function AgentPanel() {
         parameters: params,
         force: true,
       });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}: ${res.statusText}` }));
+        throw new Error(errorData.error || `Request failed with status ${res.status}`);
+      }
+      
       const data = await res.json();
+      
+      // Log the full response for debugging
+      console.log(`[AgentPanel] Action ${actionId} response:`, data);
 
       const logEntry = {
         time: new Date().toLocaleTimeString(),
         action: actionId,
-        success: data.success,
-        message: data.message || data.error,
+        success: data.success === true,
+        message: data.message || data.error || "Unknown response",
       };
       setActionLog((prev) => [logEntry, ...prev.slice(0, 19)]);
 
-      if (data.success) {
+      if (data.success === true) {
         setMessage({ type: "success", text: successMsg || data.message || "Action completed" });
-        fetchStatus();
+        // Refresh status after a short delay to see updated state
+        setTimeout(() => fetchStatus(), 1000);
       } else if (data.requires_approval) {
         setMessage({ type: "warning", text: `Action requires approval: ${data.message}` });
       } else {
-        setMessage({ type: "error", text: data.error || "Action failed" });
+        const errorMsg = data.error || data.message || "Action failed";
+        setMessage({ type: "error", text: errorMsg });
+        console.error(`[AgentPanel] Action ${actionId} failed:`, errorMsg, data);
       }
     } catch (e) {
-      setMessage({ type: "error", text: e.message });
+      const errorMsg = e.message || "Failed to execute action";
+      setMessage({ type: "error", text: errorMsg });
       setActionLog((prev) => [
-        { time: new Date().toLocaleTimeString(), action: actionId, success: false, message: e.message },
+        { time: new Date().toLocaleTimeString(), action: actionId, success: false, message: errorMsg },
         ...prev.slice(0, 19),
       ]);
+      console.error(`[AgentPanel] Error executing action ${actionId}:`, e);
     } finally {
       setActionLoading(null);
     }
@@ -79,11 +149,55 @@ function AgentPanel() {
     executeAction("get_resources", {}, "Resources refreshed");
   };
 
+  const fetchLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const res = await apiGet("/api/v1/agent/logs");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(errorData.error || `Failed to fetch logs: ${res.status}`);
+      }
+      const data = await res.json();
+      setAgentLogs(data);
+      setShowLogs(true);
+    } catch (e) {
+      setAgentLogs({ error: e.message });
+      setShowLogs(true);
+      console.error("[AgentPanel] Error fetching logs:", e);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
   const getResourceLevel = (percentage) => {
     if (percentage < 50) return "low";
     if (percentage < 80) return "medium";
     return "high";
   };
+
+  // Polling controls component
+  const PollingControls = () => (
+    <div className="agent-polling-controls">
+      <button
+        className={`agent-polling-btn ${autoPolling ? 'active' : 'paused'}`}
+        onClick={toggleAutoPolling}
+        title={autoPolling ? 'Auto-polling ON (click to pause)' : 'Auto-polling OFF (click to enable)'}
+      >
+        {autoPolling ? '⟳' : '⏸'}
+      </button>
+      {(!autoPolling || status?.status === 'error') && (
+        <button
+          className="agent-polling-btn refresh"
+          onClick={manualRefresh}
+          disabled={checking}
+          title="Check agent status now"
+        >
+          {checking ? '...' : '↻'}
+        </button>
+      )}
+      {checking && <span className="agent-checking-indicator">●</span>}
+    </div>
+  );
 
   if (loading) {
     return (
@@ -98,9 +212,12 @@ function AgentPanel() {
       <div className="panel agent-panel">
         <div className="agent-header">
           <h2>Agent Control</h2>
-          <div className="agent-status-badge disabled">
-            <span className="agent-status-dot disabled"></span>
-            Disabled
+          <div className="agent-header-controls">
+            <PollingControls />
+            <div className="agent-status-badge disabled">
+              <span className="agent-status-dot disabled"></span>
+              Disabled
+            </div>
           </div>
         </div>
         <div className="agent-disabled">
@@ -123,9 +240,12 @@ function AgentPanel() {
     <div className="panel agent-panel">
       <div className="agent-header">
         <h2>Agent Control</h2>
-        <div className={`agent-status-badge ${isOnline ? "online" : "offline"}`}>
-          <span className={`agent-status-dot ${isOnline ? "online" : "offline"}`}></span>
-          {isOnline ? "Online" : "Offline"}
+        <div className="agent-header-controls">
+          <PollingControls />
+          <div className={`agent-status-badge ${isOnline ? "online" : "offline"}`}>
+            <span className={`agent-status-dot ${isOnline ? "online" : "offline"}`}></span>
+            {isOnline ? "Online" : "Offline"}
+          </div>
         </div>
       </div>
 
@@ -137,8 +257,46 @@ function AgentPanel() {
 
       <div className="agent-content">
         {!isOnline ? (
-          <div className="agent-message error">
-            Cannot connect to agent: {status?.error || "Unknown error"}
+          <div className="agent-offline-content">
+            <div className="agent-message error">
+              <div style={{ marginBottom: "8px", fontWeight: "bold" }}>Cannot connect to agent</div>
+              <div style={{ fontSize: "0.9em" }}>{status?.error || "Unknown error"}</div>
+            </div>
+            
+            <div className="agent-offline-notice">
+              <div className="agent-polling-status">
+                {autoPolling ? (
+                  <>
+                    <span className="polling-indicator active">●</span>
+                    <span>Auto-polling is ON - checking every 5 seconds</span>
+                    <button className="agent-btn small" onClick={toggleAutoPolling}>
+                      Pause Polling
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="polling-indicator paused">●</span>
+                    <span>Auto-polling is OFF</span>
+                    <button className="agent-btn small" onClick={toggleAutoPolling}>
+                      Enable Polling
+                    </button>
+                    <button className="agent-btn small" onClick={manualRefresh} disabled={checking}>
+                      {checking ? 'Checking...' : 'Check Now'}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+            
+            <div style={{ fontSize: "0.85em", marginTop: "12px", opacity: 0.8 }}>
+              Check that:
+              <ul style={{ marginTop: "4px", paddingLeft: "20px" }}>
+                <li>The agent URL is correct in Settings</li>
+                <li>The agent server is running on the 4090 rig</li>
+                <li>The API key matches between ARES and the agent</li>
+                <li>Network connectivity is working (firewall, VPN, etc.)</li>
+              </ul>
+            </div>
           </div>
         ) : (
           <>
@@ -293,6 +451,41 @@ function AgentPanel() {
                 </div>
               </div>
             )}
+
+            {/* Agent Logs */}
+            <div className="agent-section">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <h3>Agent Logs</h3>
+                <button
+                  className="agent-btn"
+                  onClick={fetchLogs}
+                  disabled={logsLoading}
+                >
+                  {logsLoading ? "Loading..." : showLogs ? "Refresh Logs" : "View Logs"}
+                </button>
+              </div>
+              {showLogs && agentLogs && (
+                <div className="agent-logs-container">
+                  {agentLogs.error ? (
+                    <div style={{ color: "#ff6b6b" }}>Error: {agentLogs.error}</div>
+                  ) : agentLogs.logs ? (
+                    Array.isArray(agentLogs.logs) ? (
+                      agentLogs.logs.map((log, idx) => (
+                        <div key={idx} style={{ marginBottom: "4px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                          {typeof log === "string" ? log : JSON.stringify(log, null, 2)}
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{JSON.stringify(agentLogs.logs, null, 2)}</div>
+                    )
+                  ) : agentLogs.content ? (
+                    <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{agentLogs.content}</div>
+                  ) : (
+                    <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{JSON.stringify(agentLogs, null, 2)}</div>
+                  )}
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>
@@ -301,4 +494,3 @@ function AgentPanel() {
 }
 
 export default AgentPanel;
-

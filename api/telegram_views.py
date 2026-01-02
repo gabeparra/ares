@@ -6,10 +6,12 @@ from django.utils import timezone
 import json
 import httpx
 import logging
+import threading
 
 from .models import ConversationMessage
 from .auth import require_auth
 from .utils import _get_setting, _set_setting, _ensure_session, _get_model_config, _get_default_system_prompt
+from .chat_views import _call_openrouter, _process_telegram_send_commands
 
 
 @require_http_methods(["GET"])
@@ -147,6 +149,254 @@ def telegram_connect(request):
     return JsonResponse({"success": True, "enabled": True, "webhook_url": webhook_url})
 
 
+def _process_telegram_message_background(token, chat_id, from_id, text, session_id, canonical_user_id):
+    """
+    Process a Telegram message in the background and send a reply.
+    This function runs in a separate thread to avoid webhook timeouts.
+    """
+    logger = logging.getLogger(__name__)
+    
+    try:
+        session = _ensure_session(session_id)
+        
+        # Fetch the system prompt from settings (same as the site uses)
+        system_prompt = _get_setting("chat_system_prompt")
+        if not system_prompt:
+            system_prompt = _get_default_system_prompt()
+        else:
+            # Append Telegram messaging instructions if not already present
+            if "[TELEGRAM_SEND:" not in system_prompt:
+                telegram_instructions = """
+
+## Telegram Messaging
+You can send messages to Telegram users. When the user asks you to send a message to someone via Telegram, use this format in your response:
+[TELEGRAM_SEND:identifier:message_text]
+
+Where:
+- identifier: The name, username, or nickname of the Telegram user (e.g., "gabu", "gabe", "@username")
+- message_text: The actual message content to send
+
+Example: If asked to "send hello to gabu", include in your response:
+[TELEGRAM_SEND:gabu:Hello from ARES!]
+
+After sending, the system will replace this marker with a confirmation. Always confirm that you've sent the message in your response.
+"""
+                system_prompt = system_prompt + telegram_instructions
+
+        # Ensure system prompt is not empty
+        if not system_prompt or not system_prompt.strip():
+            logger.error("System prompt is empty, using default")
+            system_prompt = _get_default_system_prompt()
+
+        # Inject user memory context (user facts and preferences) using canonical user_id
+        from .user_memory_views import get_user_memory_context
+        user_memory_context = get_user_memory_context(canonical_user_id)
+        if user_memory_context:
+            system_prompt = system_prompt + "\n\n" + user_memory_context
+
+        # Inject calendar context if available and relevant
+        try:
+            from .calendar_views import get_calendar_context_summary
+            calendar_summary = get_calendar_context_summary(user_id=canonical_user_id, message=text)
+            if calendar_summary:
+                system_prompt = system_prompt + "\n\n" + calendar_summary
+        except Exception as e:
+            # Don't fail chat if calendar context fails
+            logger.warning(f"Failed to get calendar context: {e}")
+
+        # Build messages list for chat API
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        logger.debug(f"System prompt length: {len(system_prompt)} chars, user_id: {canonical_user_id}")
+
+        # Fetch conversation history for context
+        history_messages = list(
+            ConversationMessage.objects.filter(session=session)
+            .order_by("-created_at")[:10]
+        )
+        history_messages.reverse()
+        
+        # Add conversation history (excluding the current message we just added)
+        for msg in history_messages[:-1]:
+            role = "user" if msg.role == ConversationMessage.ROLE_USER else "assistant"
+            if msg.role in (ConversationMessage.ROLE_USER, ConversationMessage.ROLE_ASSISTANT):
+                messages.append({"role": role, "content": msg.message})
+        
+        # Add current user message
+        messages.append({"role": "user", "content": text})
+
+        # Get model configuration from settings
+        model_config = _get_model_config()
+        
+        # Quick health check: verify Ollama is available before attempting to use it
+        # This avoids waiting 120 seconds if the local machine is off
+        ollama_base_url = settings.OLLAMA_BASE_URL
+        ollama_available = False
+        try:
+            with httpx.Client(timeout=3.0) as client:
+                health_check_url = f"{ollama_base_url}/api/tags"
+                health_response = client.get(health_check_url)
+                if health_response.status_code == 200:
+                    ollama_available = True
+                    logger.debug("Ollama is available, proceeding with local model")
+                else:
+                    logger.info(f"Ollama health check returned HTTP {health_response.status_code}, using OpenRouter")
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError) as e:
+            logger.info(f"Ollama is not available (local machine likely off): {type(e).__name__}. Using OpenRouter.")
+        except Exception as e:
+            logger.warning(f"Ollama health check failed: {e}. Using OpenRouter.")
+        
+        # Generate a reply via Ollama or OpenRouter
+        assistant_text = None
+        model_name = None
+        
+        # Only try Ollama if it's available
+        if ollama_available:
+            try:
+                # Use session-specific model if set, otherwise use default
+                model_name = getattr(settings, 'OLLAMA_MODEL', 'mistral')
+                if session and session.model:
+                    model_name = session.model
+
+                # Route to Ollama API
+                ollama_url = f"{ollama_base_url}/api/chat"
+                
+                payload = {
+                    'model': model_name,
+                    'messages': messages,
+                    'stream': False,
+                    'options': {
+                        'temperature': model_config['temperature'],
+                        'top_p': model_config['top_p'],
+                        'top_k': model_config.get('top_k', 40),
+                        'repeat_penalty': model_config.get('repeat_penalty', 1.1),
+                        'num_gpu': int(model_config.get('num_gpu', 40)),
+                    }
+                }
+                
+                with httpx.Client(timeout=120.0) as client:
+                    r = client.post(ollama_url, json=payload)
+                    r.raise_for_status()
+                    result = r.json() or {}
+                    assistant_text = (result.get("message", {}).get("content") or "").strip()
+            except (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError) as e:
+                # Network errors during actual request - fallback to OpenRouter
+                logger.warning(f"Ollama request failed (network error): {e}. Falling back to OpenRouter.")
+                ConversationMessage.objects.create(
+                    session=session,
+                    role=ConversationMessage.ROLE_ERROR,
+                    message=f"Ollama request failed, using OpenRouter fallback: {str(e)}",
+                )
+                assistant_text, model_name = _call_openrouter(messages, model_config)
+                logger.info(f"Successfully used OpenRouter fallback for Telegram message")
+            except httpx.HTTPStatusError as e:
+                # HTTP errors from Ollama - try OpenRouter fallback
+                logger.warning(f"Ollama API HTTP error: {e}. Falling back to OpenRouter.")
+                ConversationMessage.objects.create(
+                    session=session,
+                    role=ConversationMessage.ROLE_ERROR,
+                    message=f"Ollama API error, using OpenRouter fallback: HTTP {e.response.status_code}",
+                )
+                assistant_text, model_name = _call_openrouter(messages, model_config)
+                logger.info(f"Successfully used OpenRouter fallback for Telegram message")
+            except Exception as e:
+                # Other unexpected errors - try OpenRouter fallback
+                logger.warning(f"Ollama API error: {e}. Falling back to OpenRouter.")
+                ConversationMessage.objects.create(
+                    session=session,
+                    role=ConversationMessage.ROLE_ERROR,
+                    message=f"Ollama error, using OpenRouter fallback: {str(e)}",
+                )
+                assistant_text, model_name = _call_openrouter(messages, model_config)
+                logger.info(f"Successfully used OpenRouter fallback for Telegram message")
+        else:
+            # Ollama not available, use OpenRouter directly
+            logger.info("Ollama not available, using OpenRouter directly")
+            try:
+                assistant_text, model_name = _call_openrouter(messages, model_config)
+                logger.info(f"Successfully used OpenRouter for Telegram message")
+            except Exception as openrouter_error:
+                logger.error(f"OpenRouter failed: {openrouter_error}")
+                assistant_text = "⚠️ I received your message, but I'm currently unable to process it because both the local AI system and cloud services are unavailable. Your message has been saved."
+        
+        # If we still don't have a response, set a fallback
+        if not assistant_text:
+            logger.warning(f"No assistant_text generated for Telegram message from user {from_id}")
+            assistant_text = "⚠️ I received your message, but I'm currently unable to process it. Please try again in a moment."
+
+        # Process Telegram send commands in the assistant response (same as chat endpoint)
+        if assistant_text:
+            assistant_text = _process_telegram_send_commands(assistant_text, user_id=canonical_user_id)
+
+        if assistant_text:
+            ConversationMessage.objects.create(
+                session=session,
+                role=ConversationMessage.ROLE_ASSISTANT,
+                message=assistant_text,
+            )
+            from .models import ChatSession
+            ChatSession.objects.filter(session_id=session_id).update(updated_at=timezone.now())
+
+            # Reply back to Telegram chat
+            # Note: This message should NOT trigger the webhook again because:
+            # 1. Telegram doesn't send webhooks for messages the bot sends
+            # 2. We check for is_bot above to prevent processing bot messages
+            try:
+                send_url = f"https://api.telegram.org/bot{token}/sendMessage"
+                with httpx.Client(timeout=10.0) as client:
+                    response = client.post(send_url, json={"chat_id": int(chat_id), "text": assistant_text})
+                    if response.status_code != 200:
+                        logger.error(f"Failed to send Telegram message: HTTP {response.status_code}")
+                        ConversationMessage.objects.create(
+                            session=session,
+                            role=ConversationMessage.ROLE_ERROR,
+                            message=f"Telegram sendMessage failed: HTTP {response.status_code}",
+                        )
+                    else:
+                        logger.info(f"Sent Telegram message to chat_id {chat_id}")
+            except Exception as e:
+                logger.error(f"Exception sending Telegram message: {e}")
+                ConversationMessage.objects.create(
+                    session=session,
+                    role=ConversationMessage.ROLE_ERROR,
+                    message=f"Telegram sendMessage failed: {str(e)}",
+                )
+        else:
+            # This should rarely happen now since error handlers set assistant_text,
+            # but keep as a safety fallback
+            logger.warning(f"No assistant_text generated for Telegram message from user {from_id}")
+            assistant_text = "⚠️ I received your message, but I'm currently unable to process it. Please try again in a moment."
+            # Save the fallback message and send it
+            ConversationMessage.objects.create(
+                session=session,
+                role=ConversationMessage.ROLE_ASSISTANT,
+                message=assistant_text,
+            )
+            from .models import ChatSession
+            ChatSession.objects.filter(session_id=session_id).update(updated_at=timezone.now())
+            
+            try:
+                send_url = f"https://api.telegram.org/bot{token}/sendMessage"
+                with httpx.Client(timeout=10.0) as client:
+                    response = client.post(send_url, json={"chat_id": int(chat_id), "text": assistant_text})
+                    if response.status_code != 200:
+                        logger.error(f"Failed to send Telegram message: HTTP {response.status_code}")
+                    else:
+                        logger.info(f"Sent Telegram fallback message to chat_id {chat_id}")
+            except Exception as e:
+                logger.error(f"Exception sending Telegram fallback message: {e}")
+    except Exception as e:
+        logger.error(f"Error in background Telegram message processing: {e}", exc_info=True)
+        # Try to send an error message to the user
+        try:
+            error_msg = "⚠️ I encountered an error processing your message. Please try again."
+            send_url = f"https://api.telegram.org/bot{token}/sendMessage"
+            with httpx.Client(timeout=10.0) as client:
+                client.post(send_url, json={"chat_id": int(chat_id), "text": error_msg})
+        except Exception:
+            pass  # If we can't send the error message, just log it
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def telegram_webhook(request):
@@ -165,12 +415,14 @@ def telegram_webhook(request):
         # Acknowledge quickly; do not process.
         return JsonResponse({"ok": True, "ignored": True})
 
-    # Optional secret token validation (recommended).
-    expected_secret = getattr(settings, "TELEGRAM_WEBHOOK_SECRET", None) or None
-    if expected_secret:
-        got_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
-        if got_secret != expected_secret:
-            return JsonResponse({"error": "Invalid Telegram webhook secret"}, status=403)
+    # SECURITY: Mandatory secret token validation to prevent fake webhooks
+    expected_secret = getattr(settings, "TELEGRAM_WEBHOOK_SECRET", None)
+    if not expected_secret:
+        return JsonResponse({"error": "Telegram webhook secret not configured"}, status=500)
+
+    got_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+    if got_secret != expected_secret:
+        return JsonResponse({"error": "Invalid Telegram webhook secret"}, status=403)
 
     try:
         update = json.loads(request.body or b"{}")
@@ -187,6 +439,12 @@ def telegram_webhook(request):
 
     from_user = message_obj.get("from") or {}
     from_id = from_user.get("id")
+    
+    # Ignore messages from bots to prevent feedback loops
+    is_bot = from_user.get("is_bot", False)
+    if is_bot:
+        logging.getLogger(__name__).info(f"Ignoring message from bot (user_id={from_id})")
+        return JsonResponse({"ok": True, "ignored": True, "reason": "bot_message"})
 
     # Handle photo/document messages first (for upscaling support)
     photo = message_obj.get("photo")
@@ -291,12 +549,16 @@ def telegram_webhook(request):
     
     # Handle text messages and commands
     if not text:
-        return JsonResponse({"ok": True})
+        # No text content, acknowledge but don't process
+        logging.getLogger(__name__).debug(f"Empty text message from user {from_id}, acknowledging")
+        return JsonResponse({"ok": True, "ignored": True, "reason": "empty_text"})
 
     # Handle SD commands if SD integration is available
     try:
         from . import sd_integration
-        if text.startswith("/sdconfig"):
+        if text.startswith("/sdfrompcconfi"):
+            return sd_integration._handle_sdfrompcconfi_command(text, chat_id, token, from_id)
+        elif text.startswith("/sdconfig"):
             return sd_integration._handle_sdconfig_command(text, chat_id, token, from_id)
         elif text.startswith("/sd "):
             return sd_integration._handle_sd_command(text, chat_id, token, from_id)
@@ -351,95 +613,222 @@ def telegram_webhook(request):
         session.title = f"Telegram {display}"
         session.save(update_fields=["title", "updated_at"])
 
+    # Get the canonical user_id for this Telegram user (linked to ARES user_id if available)
+    from .utils import _get_canonical_user_id
+    canonical_user_id = _get_canonical_user_id(str(from_id), default_user_id="default")
+
+    # Save the user message immediately
     ConversationMessage.objects.create(
         session=session,
         role=ConversationMessage.ROLE_USER,
         message=text,
     )
 
-    # Generate a reply via Ollama using the default system prompt and conversation history.
-    assistant_text = None
-    try:
-        # Fetch the system prompt from settings (same as the site uses)
-        system_prompt = _get_setting("chat_system_prompt")
-        if not system_prompt:
-            system_prompt = _get_default_system_prompt()
+    # Process message in background thread to avoid webhook timeout
+    # Telegram webhooks timeout after ~60 seconds, but Ollama can take up to 120 seconds
+    thread = threading.Thread(
+        target=_process_telegram_message_background,
+        args=(token, chat_id, from_id, text, session_id, canonical_user_id),
+        daemon=True
+    )
+    thread.start()
 
-        # Build messages list for Ollama chat API
-        messages = [{"role": "system", "content": system_prompt}]
-
-        # Fetch conversation history for context
-        history_messages = list(
-            ConversationMessage.objects.filter(session=session)
-            .order_by("-created_at")[:10]
-        )
-        history_messages.reverse()
-        
-        # Add conversation history (excluding the current message we just added)
-        for msg in history_messages[:-1]:
-            role = "user" if msg.role == ConversationMessage.ROLE_USER else "assistant"
-            if msg.role in (ConversationMessage.ROLE_USER, ConversationMessage.ROLE_ASSISTANT):
-                messages.append({"role": role, "content": msg.message})
-        
-        # Add current user message
-        messages.append({"role": "user", "content": text})
-
-        # Get model configuration from settings
-        model_config = _get_model_config()
-        
-        # Use session-specific model if set, otherwise use default
-        model_name = getattr(settings, 'OLLAMA_MODEL', 'mistral')
-        if session and session.model:
-            model_name = session.model
-
-        # Route to Ollama API
-        ollama_url = f"{settings.OLLAMA_BASE_URL}/api/chat"
-        
-        payload = {
-            'model': model_name,
-            'messages': messages,
-            'stream': False,
-            'options': {
-                'temperature': model_config['temperature'],
-                'top_p': model_config['top_p'],
-                'top_k': model_config.get('top_k', 40),
-                'repeat_penalty': model_config.get('repeat_penalty', 1.1),
-            }
-        }
-        
-        with httpx.Client(timeout=120.0) as client:
-            r = client.post(ollama_url, json=payload)
-            r.raise_for_status()
-            result = r.json() or {}
-            assistant_text = (result.get("message", {}).get("content") or "").strip()
-    except Exception as e:
-        logging.getLogger(__name__).error(f"Ollama API error: {e}")
-        ConversationMessage.objects.create(
-            session=session,
-            role=ConversationMessage.ROLE_ERROR,
-            message=f"Telegram reply generation failed: {str(e)}",
-        )
-
-    if assistant_text:
-        ConversationMessage.objects.create(
-            session=session,
-            role=ConversationMessage.ROLE_ASSISTANT,
-            message=assistant_text,
-        )
-        from .models import ChatSession
-        ChatSession.objects.filter(session_id=session_id).update(updated_at=timezone.now())
-
-        # Reply back to Telegram chat
-        try:
-            send_url = f"https://api.telegram.org/bot{token}/sendMessage"
-            with httpx.Client(timeout=10.0) as client:
-                client.post(send_url, json={"chat_id": int(chat_id), "text": assistant_text})
-        except Exception as e:
-            ConversationMessage.objects.create(
-                session=session,
-                role=ConversationMessage.ROLE_ERROR,
-                message=f"Telegram sendMessage failed: {str(e)}",
-            )
-
+    # Return immediately to acknowledge receipt to Telegram
+    # This prevents Telegram from timing out and retrying the webhook
     return JsonResponse({"ok": True, "session_id": session_id})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@require_auth
+def telegram_send(request):
+    """
+    Send a message to a Telegram chat.
+    
+    Required parameters:
+    - chat_id: Telegram chat ID (user ID for direct messages)
+    - message: Text message to send
+    
+    Optional parameters:
+    - parse_mode: Markdown or HTML formatting (optional)
+    """
+    token = getattr(settings, "TELEGRAM_BOT_TOKEN", None) or None
+    if not token:
+        return JsonResponse({"error": "TELEGRAM_BOT_TOKEN is not configured"}, status=400)
+    
+    enabled = _get_setting("telegram_enabled", "true").lower() == "true"
+    if not enabled:
+        return JsonResponse({"error": "Telegram integration is disabled"}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        chat_id = data.get("chat_id")
+        message = data.get("message")
+        parse_mode = data.get("parse_mode")  # Optional: "Markdown", "HTML", or None
+        
+        if not chat_id:
+            return JsonResponse({"error": "chat_id is required"}, status=400)
+        if not message:
+            return JsonResponse({"error": "message is required"}, status=400)
+        
+        # Send message via Telegram Bot API
+        send_url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {
+            "chat_id": int(chat_id),
+            "text": message,
+        }
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+        
+        with httpx.Client(timeout=10.0) as client:
+            r = client.post(send_url, json=payload)
+            if r.status_code == 200:
+                result = r.json()
+                if result.get("ok"):
+                    return JsonResponse({
+                        "success": True,
+                        "message_id": result.get("result", {}).get("message_id"),
+                    })
+                else:
+                    error_desc = result.get("description") or "Unknown error"
+                    return JsonResponse(
+                        {"error": f"Telegram API error: {error_desc}"},
+                        status=502,
+                    )
+            else:
+                try:
+                    error_data = r.json()
+                    error_desc = error_data.get("description") or f"HTTP {r.status_code}"
+                except Exception:
+                    error_desc = f"HTTP {r.status_code}"
+                return JsonResponse(
+                    {"error": f"Failed to send message: {error_desc}"},
+                    status=502,
+                )
+    except ValueError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        logging.getLogger(__name__).error(f"telegram_send error: {e}")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+@require_auth
+def telegram_chats(request):
+    """
+    List available Telegram chats (sessions that have telegram_user_ prefix).
+    
+    Returns a list of Telegram chat sessions with their chat_id extracted from session_id.
+    """
+    enabled = _get_setting("telegram_enabled", "true").lower() == "true"
+    if not enabled:
+        return JsonResponse({"error": "Telegram integration is disabled"}, status=403)
+    
+    from .models import ChatSession
+    
+    # Find all sessions that start with "telegram_user_"
+    telegram_sessions = ChatSession.objects.filter(
+        session_id__startswith="telegram_user_"
+    ).order_by("-updated_at")
+    
+    chats = []
+    for session in telegram_sessions:
+        # Extract chat_id from session_id (format: "telegram_user_{chat_id}")
+        try:
+            chat_id = session.session_id.replace("telegram_user_", "")
+            chats.append({
+                "chat_id": chat_id,
+                "session_id": session.session_id,
+                "title": session.title or "Telegram Chat",
+                "updated_at": session.updated_at.isoformat() if session.updated_at else None,
+            })
+        except Exception:
+            # Skip sessions with invalid format
+            continue
+    
+    return JsonResponse({"chats": chats})
+
+
+def _get_telegram_chat_id_by_identifier(identifier, user_id="default"):
+    """
+    Find Telegram chat_id by user identifier (name, username, or nickname).
+    
+    Searches in order:
+    1. User preferences (telegram_chat_id_{identifier})
+    2. User facts (telegram_chat_id fact_type)
+    3. Session title (contains identifier, with smart matching)
+    4. Session ID (telegram_user_{chat_id})
+    
+    Returns chat_id if found, None otherwise.
+    """
+    from .models import ChatSession, UserPreference, UserFact
+    
+    identifier_lower = identifier.lower().strip()
+    # Normalize identifier: remove @ if present
+    identifier_normalized = identifier_lower.lstrip('@').strip()
+    
+    # 1. Check user preferences first (telegram_chat_id_{identifier})
+    pref_key = f"telegram_chat_id_{identifier_normalized}"
+    preference = UserPreference.objects.filter(user_id=user_id, preference_key=pref_key).first()
+    if preference:
+        return preference.preference_value.strip()
+    
+    # 2. Check user facts (look for telegram_chat_id fact with matching key)
+    fact = UserFact.objects.filter(
+        user_id=user_id,
+        fact_key__iexact=identifier_normalized,
+        fact_value__startswith="telegram_user_"
+    ).first()
+    if fact:
+        # Extract chat_id from fact_value like "telegram_user_123456"
+        chat_id = fact.fact_value.replace("telegram_user_", "").strip()
+        if chat_id:
+            return chat_id
+    
+    # Also check if fact_key is something like "telegram_chat_id" and fact_value is the chat_id
+    fact = UserFact.objects.filter(
+        user_id=user_id,
+        fact_key__iexact=f"telegram_chat_id_{identifier_normalized}"
+    ).first()
+    if fact:
+        # fact_value should be the chat_id directly
+        chat_id = fact.fact_value.strip().replace("telegram_user_", "").strip()
+        if chat_id:
+            return chat_id
+    
+    # 3. Search Telegram sessions by title
+    telegram_sessions = ChatSession.objects.filter(
+        session_id__startswith="telegram_user_"
+    ).order_by("-updated_at")
+    
+    for session in telegram_sessions:
+        # Check if title matches (case-insensitive, with smart parsing)
+        if session.title:
+            title_lower = session.title.lower()
+            # Remove "telegram" prefix and normalize
+            title_normalized = title_lower.replace("telegram", "").strip().lstrip('@').strip()
+            
+            # Check various matching strategies:
+            # 1. Direct substring match (identifier in title or vice versa)
+            if identifier_normalized in title_normalized or title_normalized in identifier_normalized:
+                chat_id = session.session_id.replace("telegram_user_", "")
+                return chat_id
+            
+            # 2. Word-based matching (check if identifier matches any word in title)
+            title_words = title_normalized.split()
+            if identifier_normalized in title_words:
+                chat_id = session.session_id.replace("telegram_user_", "")
+                return chat_id
+            
+            # 3. Check if identifier starts with title or vice versa (for partial matches)
+            if title_normalized.startswith(identifier_normalized) or identifier_normalized.startswith(title_normalized):
+                chat_id = session.session_id.replace("telegram_user_", "")
+                return chat_id
+        
+        # 4. Also check session ID itself (in case identifier is the chat_id)
+        chat_id = session.session_id.replace("telegram_user_", "")
+        if identifier_normalized == chat_id or identifier_normalized == chat_id.lower():
+            return chat_id
+    
+    return None
 

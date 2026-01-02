@@ -6,7 +6,7 @@ services:
     container_name: ares-openrouter-dev
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-openai/gpt-3.5-turbo}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-deepseek/deepseek-chat}
       - OPENROUTER_SERVICE_PORT=3100
     networks:
       - ares-network
@@ -23,7 +23,8 @@ services:
     volumes:
       - .:/app
       - /app/staticfiles
-      - /var/run/docker.sock:/var/run/docker.sock
+      # SECURITY: Docker socket removed - use Docker API with TLS for container management
+      # - /var/run/docker.sock:/var/run/docker.sock
       - ./data/chromadb:/app/data/chromadb
     command: python manage.py runserver 0.0.0.0:8000
     environment:
@@ -41,10 +42,22 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_ALLOWED_CHAT_IDS=${TELEGRAM_ALLOWED_CHAT_IDS}
       - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET}
+      # Google Calendar OAuth Configuration
+      - GOOGLE_CALENDAR_CLIENT_ID=${GOOGLE_CALENDAR_CLIENT_ID}
+      - GOOGLE_CALENDAR_CLIENT_SECRET=${GOOGLE_CALENDAR_CLIENT_SECRET}
+      - GOOGLE_CALENDAR_REDIRECT_URI=${GOOGLE_CALENDAR_REDIRECT_URI}
       # SD API Authentication
       - API_USERNAME=${API_USERNAME}
       - API_PASSWORD=${API_PASSWORD}
       - VITE_SD_API_URL=${VITE_SD_API_URL}
+      # Ollama Configuration
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-mistral}
+      # ElevenLabs TTS Configuration
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - ELEVENLABS_VOICE_ID=${ELEVENLABS_VOICE_ID:-21m00Tcm4TlvDq8ikWAM}
+      # OpenAI Whisper STT Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
       # OpenRouter Service URL (TypeScript SDK wrapper)
       - OPENROUTER_SERVICE_URL=http://openrouter:3100
     depends_on:

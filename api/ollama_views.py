@@ -366,6 +366,8 @@ def ollama_chat(request):
             options["top_p"] = data["top_p"]
         if "num_ctx" in data:
             options["num_ctx"] = data["num_ctx"]
+        if "num_gpu" in data:
+            options["num_gpu"] = int(data["num_gpu"])
         
         if options:
             payload["options"] = options
@@ -430,6 +432,8 @@ def ollama_generate(request):
             options["top_p"] = data["top_p"]
         if "num_ctx" in data:
             options["num_ctx"] = data["num_ctx"]
+        if "num_gpu" in data:
+            options["num_gpu"] = int(data["num_gpu"])
         
         if options:
             payload["options"] = options

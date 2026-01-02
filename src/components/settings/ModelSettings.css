@@ -5,8 +5,10 @@
   */
   min-height: 0;
   height: 100%;
+  flex: 1;
   overflow-y: auto; /* single scroll container */
   overflow-x: hidden;
+  width: 100%;
 }
 
 .model-settings-panel,

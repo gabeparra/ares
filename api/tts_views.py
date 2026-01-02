@@ -8,7 +8,7 @@ Provides endpoints for:
 - POST /api/v1/tts/config - Update TTS configuration
 """
 
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
@@ -103,27 +103,69 @@ def text_to_speech(request):
             "voice_settings": voice_settings,
         }
         
-        with httpx.Client(timeout=60.0) as client:
-            response = client.post(url, headers=headers, json=payload)
+        # Check if streaming is requested (default to True for better UX)
+        stream = data.get("stream", True)
+        
+        if stream:
+            # Streaming mode: stream audio chunks as they arrive
+            def generate_audio_stream():
+                with httpx.Client(timeout=60.0) as client:
+                    try:
+                        with client.stream("POST", url, headers=headers, json=payload) as response:
+                            # Check status code before streaming
+                            if response.status_code != 200:
+                                # Read error response
+                                error_content = b""
+                                for chunk in response.iter_bytes():
+                                    error_content += chunk
+                                # Raise exception - Django will handle this by closing the stream
+                                # Frontend will see non-200 status via response.ok
+                                raise Exception(f"ElevenLabs API returned status {response.status_code}")
+                            
+                            # Status is 200, stream chunks as they arrive
+                            for chunk in response.iter_bytes(chunk_size=8192):
+                                if chunk:
+                                    yield chunk
+                    except httpx.ConnectError:
+                        # Connection errors - Django will close the stream
+                        # Frontend will detect this
+                        raise Exception("Cannot connect to ElevenLabs API")
+                    except Exception as e:
+                        # Re-raise to let Django handle it
+                        raise
             
-            if response.status_code == 200:
-                # Return audio as response
-                audio_response = HttpResponse(
-                    response.content,
-                    content_type="audio/mpeg"
-                )
-                audio_response["Content-Disposition"] = "inline"
-                return audio_response
-            else:
-                try:
-                    error_data = response.json()
-                    error_msg = error_data.get("detail", {}).get("message", str(error_data))
-                except Exception:
-                    error_msg = response.text
+            # Return streaming response
+            # Errors will cause the stream to close, which frontend will detect
+            audio_response = StreamingHttpResponse(
+                generate_audio_stream(),
+                content_type="audio/mpeg"
+            )
+            audio_response["Content-Disposition"] = "inline"
+            audio_response["Cache-Control"] = "no-cache"
+            return audio_response
+        else:
+            # Non-streaming mode (backward compatibility)
+            with httpx.Client(timeout=60.0) as client:
+                response = client.post(url, headers=headers, json=payload)
                 
-                return JsonResponse({
-                    "error": f"ElevenLabs API error: {error_msg}"
-                }, status=response.status_code)
+                if response.status_code == 200:
+                    # Return audio as response
+                    audio_response = HttpResponse(
+                        response.content,
+                        content_type="audio/mpeg"
+                    )
+                    audio_response["Content-Disposition"] = "inline"
+                    return audio_response
+                else:
+                    try:
+                        error_data = response.json()
+                        error_msg = error_data.get("detail", {}).get("message", str(error_data))
+                    except Exception:
+                        error_msg = response.text
+                    
+                    return JsonResponse({
+                        "error": f"ElevenLabs API error: {error_msg}"
+                    }, status=response.status_code)
                 
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
