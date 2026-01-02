@@ -2,7 +2,9 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg-primary, #0a0a0f);
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
   color: var(--text-primary, #e4e4e7);
 }
 

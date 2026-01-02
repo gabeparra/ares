@@ -8,6 +8,9 @@ PyJWT>=2.8.0
 cryptography>=41.0.0
 requests>=2.31.0
 
+# Security - Field Encryption
+django-encrypted-model-fields>=0.6.5
+
 # Database
 psycopg2-binary>=2.9.9
 
@@ -23,4 +26,10 @@ python-telegram-bot>=20.0
 
 # RAG (Retrieval-Augmented Generation)
 chromadb>=0.4.22
+
+# Google Calendar Integration
+google-auth>=2.23.0
+google-auth-oauthlib>=1.1.0
+google-auth-httplib2>=0.1.1
+google-api-python-client>=2.100.0
 

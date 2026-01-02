@@ -13,10 +13,12 @@ from django.views.decorators.http import require_http_methods
 import json
 
 from ares_core.agent_client import get_agent_client, AVAILABLE_ACTIONS
+from .auth import require_auth
 
 
+@csrf_exempt  # JWT auth
+@require_auth  # SECURITY: Requires authentication
 @require_http_methods(["GET"])
-@csrf_exempt
 def agent_status(request):
     """
     GET: Get the agent connection status and system resources.
@@ -41,8 +43,9 @@ def agent_status(request):
         client.close()
 
 
+@csrf_exempt  # JWT auth
+@require_auth  # SECURITY: Requires authentication
 @require_http_methods(["GET"])
-@csrf_exempt
 def agent_resources(request):
     """
     GET: Get detailed system resource usage from the agent.
@@ -63,8 +66,9 @@ def agent_resources(request):
         client.close()
 
 
+@csrf_exempt  # JWT auth
+@require_auth  # SECURITY: Requires authentication
 @require_http_methods(["GET"])
-@csrf_exempt
 def agent_actions(request):
     """
     GET: List available agent actions with their risk levels.
@@ -86,8 +90,9 @@ def agent_actions(request):
         client.close()
 
 
+@csrf_exempt  # JWT auth
+@require_auth  # SECURITY: Requires authentication
 @require_http_methods(["POST"])
-@csrf_exempt
 def agent_action(request):
     """
     POST: Execute an action on the agent.
@@ -140,6 +145,11 @@ def agent_action(request):
         # Execute the action
         result = client.execute_action(action_id, parameters)
         
+        # Log the result for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Agent action {action_id} result: {result}")
+        
         return JsonResponse(result)
     
     except json.JSONDecodeError:
@@ -156,8 +166,9 @@ def agent_action(request):
         client.close()
 
 
+@csrf_exempt  # JWT auth
+@require_auth  # SECURITY: Requires authentication
 @require_http_methods(["POST"])
-@csrf_exempt
 def agent_start_sd(request):
     """
     POST: Convenience endpoint to start Stable Diffusion.
@@ -200,8 +211,9 @@ def agent_start_sd(request):
         client.close()
 
 
+@csrf_exempt  # JWT auth
+@require_auth  # SECURITY: Requires authentication
 @require_http_methods(["POST"])
-@csrf_exempt
 def agent_stop_sd(request):
     """
     POST: Convenience endpoint to stop Stable Diffusion.
@@ -226,8 +238,33 @@ def agent_stop_sd(request):
         client.close()
 
 
+@csrf_exempt  # JWT auth
+@require_auth  # SECURITY: Requires authentication
+@require_http_methods(["GET"])
+def agent_logs(request):
+    """
+    GET: Get agent logs.
+    
+    Returns:
+        Log data from the agent
+    """
+    client = get_agent_client()
+    
+    if not client:
+        return JsonResponse({
+            "error": "Agent is not configured or disabled",
+        }, status=400)
+    
+    try:
+        logs = client.get_logs()
+        return JsonResponse(logs)
+    finally:
+        client.close()
+
+
+@csrf_exempt  # JWT auth
+@require_auth  # SECURITY: Requires authentication
 @require_http_methods(["POST"])
-@csrf_exempt
 def agent_adjust_ollama(request):
     """
     POST: Adjust Ollama runtime parameters.

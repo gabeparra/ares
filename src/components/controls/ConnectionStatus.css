@@ -1,7 +1,7 @@
 .connection-status {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
   padding: 8px 16px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -20,4 +20,86 @@
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.connection-checking {
+  color: #ffd700;
+  font-size: 0.6em;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.connection-error {
+  color: #ff6b6b;
+  font-size: 0.8em;
+  opacity: 0.9;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connection-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.connection-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1em;
+  transition: all 0.15s ease;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.connection-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.connection-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Auto-reconnect button states */
+.auto-reconnect-btn.active {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+}
+
+.auto-reconnect-btn.active:hover {
+  background: rgba(74, 222, 128, 0.25);
+}
+
+.auto-reconnect-btn.paused {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+}
+
+.auto-reconnect-btn.paused:hover {
+  background: rgba(251, 146, 60, 0.25);
+}
+
+/* Reconnect button */
+.reconnect-btn {
+  font-size: 1.1em;
+}
+
+.reconnect-btn:hover:not(:disabled) {
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
 }

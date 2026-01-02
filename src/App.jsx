@@ -17,8 +17,12 @@ import OllamaApiPanel from "./components/api/OllamaApiPanel";
 import IdentityPanel from "./components/identity/IdentityPanel";
 import UserMemoryPanel from "./components/memory/UserMemoryPanel";
 import AgentPanel from "./components/agent/AgentPanel";
+import CalendarPanel from "./components/calendar/CalendarPanel";
+import CodeBrowser from "./components/code/CodeBrowser";
 import Tabs from "./components/Tabs";
+import TabPanel from "./components/TabPanel";
 import { apiGet } from "./services/api";
+import { setAuthToken, clearAuthToken, setRefreshTokenCallback, clearAuthModule } from "./services/auth";
 import "./styles/App.css";
 
 function App() {
@@ -33,7 +37,7 @@ function App() {
   const [hasAccess, setHasAccess] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
 
-  // Store auth token globally for API calls and set up refresh mechanism
+  // SECURITY: Store auth token securely in memory (not in window object)
   useEffect(() => {
     if (isAuthenticated) {
       const refreshToken = async () => {
@@ -41,7 +45,7 @@ function App() {
           // Force Auth0 to refresh the session by getting a fresh access token first
           // This ensures the session is restored if the user comes back after closing browser
           try {
-            await getAccessTokenSilently({ 
+            await getAccessTokenSilently({
               cacheMode: 'off',
               authorizationParams: {
                 prompt: 'none' // Silent refresh, don't show login prompt
@@ -51,23 +55,24 @@ function App() {
             // If silent refresh fails, the session might be expired
             console.warn("Silent token refresh failed, will try ID token:", e);
           }
-          
+
           // Get ID token claims - Auth0 SDK should handle refresh automatically
           // If the session is valid, this will get a fresh token
           const claims = await getIdTokenClaims();
           if (!claims || !claims.__raw) {
             throw new Error("Failed to get ID token claims");
           }
-          
-          window.authToken = claims.__raw;
-          
+
+          // SECURITY: Store in secure memory module instead of window object
+          setAuthToken(claims.__raw);
+
           // Don't trigger access check here - it causes circular loops
           // Access check will use the refreshed token automatically via apiGet
-          
+
           return claims.__raw;
         } catch (err) {
           console.error("Failed to refresh token:", err);
-          window.authToken = null;
+          clearAuthToken();
           throw err;
         }
       };
@@ -77,8 +82,8 @@ function App() {
         console.error("Initial token fetch failed:", err);
       });
 
-      // Set up global token refresh function for API service
-      window.refreshAuthToken = refreshToken;
+      // SECURITY: Set up refresh callback in secure auth module
+      setRefreshTokenCallback(refreshToken);
 
       // Set up periodic token refresh (every 30 minutes to keep token fresh)
       // Auth0 ID tokens typically expire after 1 hour
@@ -93,13 +98,11 @@ function App() {
 
       return () => {
         clearInterval(refreshInterval);
-        window.refreshAuthToken = null;
-        window.triggerAccessCheck = null;
+        clearAuthModule();
       };
     } else {
-      window.authToken = null;
-      window.refreshAuthToken = null;
-      window.triggerAccessCheck = null;
+      // Clear auth when not authenticated
+      clearAuthModule();
     }
   }, [isAuthenticated, getIdTokenClaims, getAccessTokenSilently]);
 
@@ -128,17 +131,8 @@ function App() {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       try {
-        // Ensure we have a token - apiGet will handle refresh automatically if needed
-        if (!window.authToken) {
-          try {
-            const claims = await getIdTokenClaims();
-            if (claims && claims.__raw) {
-              window.authToken = claims.__raw;
-            }
-          } catch (e) {
-            console.warn("Failed to get initial token, apiGet will handle refresh:", e);
-          }
-        }
+        // apiGet will handle token refresh automatically if needed
+        // No need to manually check - the secure auth module handles this
 
         // Use apiGet which automatically handles token refresh and retry on 401
         const response = await apiGet("/api/v1/auth/check-admin");
@@ -305,19 +299,49 @@ function MainInterface() {
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [currentModel, setCurrentModel] = useState("");
   const [currentProvider, setCurrentProvider] = useState("local");
+  const [tabVisibility, setTabVisibility] = useState({
+    sdapi: true, // Default to visible
+  });
 
-  const tabs = [
+  // Load tab visibility settings
+  useEffect(() => {
+    const loadTabVisibility = async () => {
+      try {
+        const response = await apiGet('/api/v1/settings/tab-visibility');
+        const data = await response.json();
+        if (data.visibility) {
+          setTabVisibility(data.visibility);
+        }
+      } catch (err) {
+        console.error('Failed to load tab visibility settings:', err);
+        // Use defaults if API fails
+      }
+    };
+    loadTabVisibility();
+  }, []);
+
+  const allTabs = [
     { id: "chat", label: "Chat", icon: "" },
+    { id: "code", label: "Code", icon: "" },
     { id: "agent", label: "Agent", icon: "" },
     { id: "identity", label: "Identity", icon: "" },
     { id: "memory", label: "Memory", icon: "" },
     { id: "sessions", label: "Sessions", icon: "" },
     { id: "transcripts", label: "Transcripts", icon: "" },
+    { id: "calendar", label: "Calendar", icon: "" },
     { id: "sdapi", label: "SD API", icon: "" },
     { id: "ollama", label: "Ollama", icon: "" },
     { id: "settings", label: "Settings", icon: "" },
     { id: "logs", label: "Logs", icon: "" },
   ];
+
+  // Filter tabs based on visibility settings
+  const tabs = allTabs.filter(tab => {
+    if (tab.id === "sdapi") {
+      return tabVisibility.sdapi !== false; // Show unless explicitly hidden
+    }
+    return true; // Show all other tabs
+  });
 
   const handleSessionSelect = (sessionId) => {
     setSelectedSessionId(sessionId);
@@ -350,31 +374,43 @@ function MainInterface() {
 
       <div className="main-content">
         <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
-          {activeTab === "chat" && (
+          <TabPanel active={activeTab === "chat"} id="chat">
             <ChatPanel
               sessionId={selectedSessionId}
               onSessionChange={setSelectedSessionId}
             />
-          )}
-          {activeTab === "agent" && <AgentPanel />}
-          {activeTab === "identity" && <IdentityPanel />}
-          {activeTab === "memory" && <UserMemoryPanel />}
-          {activeTab === "sessions" && (
+          </TabPanel>
+          <TabPanel active={activeTab === "code"} id="code">
+            <CodeBrowser />
+          </TabPanel>
+          <TabPanel active={activeTab === "agent"} id="agent">
+            <AgentPanel />
+          </TabPanel>
+          <TabPanel active={activeTab === "identity"} id="identity">
+            <IdentityPanel />
+          </TabPanel>
+          <TabPanel active={activeTab === "memory"} id="memory">
+            <UserMemoryPanel />
+          </TabPanel>
+          <TabPanel active={activeTab === "sessions"} id="sessions">
             <div className="panel panel-fill">
               <ConversationList
                 onSelectSession={handleSessionSelect}
                 selectedSessionId={selectedSessionId}
               />
             </div>
-          )}
-          {activeTab === "transcripts" && (
+          </TabPanel>
+          <TabPanel active={activeTab === "transcripts"} id="transcripts">
             <TranscriptUpload
               onSummaryGenerated={(summary, filename) => {
                 console.log("Summary generated:", summary, filename);
               }}
             />
-          )}
-          {activeTab === "settings" && (
+          </TabPanel>
+          <TabPanel active={activeTab === "calendar"} id="calendar">
+            <CalendarPanel />
+          </TabPanel>
+          <TabPanel active={activeTab === "settings"} id="settings">
             <div className="panel panel-fill">
               <ProviderSelector
                 currentProvider={currentProvider}
@@ -390,10 +426,16 @@ function MainInterface() {
                 currentProvider={currentProvider}
               />
             </div>
-          )}
-          {activeTab === "sdapi" && <SDApiPanel />}
-          {activeTab === "ollama" && <OllamaApiPanel />}
-          {activeTab === "logs" && <LogsPanel />}
+          </TabPanel>
+          <TabPanel active={activeTab === "sdapi"} id="sdapi">
+            <SDApiPanel />
+          </TabPanel>
+          <TabPanel active={activeTab === "ollama"} id="ollama">
+            <OllamaApiPanel />
+          </TabPanel>
+          <TabPanel active={activeTab === "logs"} id="logs">
+            <LogsPanel />
+          </TabPanel>
         </Tabs>
       </div>
     </div>

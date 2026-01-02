@@ -13,7 +13,7 @@ DATA_DIR = BASE_DIR / "data"
 
 # OpenRouter configuration (primary LLM provider)
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "anthropic/claude-3.5-sonnet")
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "deepseek/deepseek-chat")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 # Local Ollama configuration (fallback)

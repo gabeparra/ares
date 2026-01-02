@@ -43,10 +43,10 @@ echo "Installing dependencies from requirements.txt..."
 .venv/bin/pip install -q --upgrade pip
 .venv/bin/pip install -q -r requirements.txt
 
-# Also install dependencies from pyproject.toml (web server dependencies)
+# Also install dependencies from pyproject.toml (Django web server dependencies)
 if [ -f "pyproject.toml" ]; then
-    echo "Installing web server dependencies..."
-    .venv/bin/pip install -q pydantic pydantic-settings python-dotenv httpx rich aiosqlite uvicorn fastapi websockets
+    echo "Installing Django web server dependencies..."
+    .venv/bin/pip install -q pydantic pydantic-settings python-dotenv httpx rich aiosqlite websockets
 fi
 
 echo "Service environment setup complete!"

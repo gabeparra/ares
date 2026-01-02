@@ -4,6 +4,7 @@ import './ProviderSelector.css'
 function ProviderSelector({ currentProvider, onProviderChange }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const providers = [
     {
@@ -95,7 +96,16 @@ function ProviderSelector({ currentProvider, onProviderChange }) {
 
   return (
     <div className="provider-selector">
-      <h3>LLM Provider</h3>
+      <div className="provider-header">
+        <h3>LLM Provider</h3>
+        <button
+          className="provider-toggle"
+          onClick={() => setIsExpanded(!isExpanded)}
+          aria-label={isExpanded ? 'Collapse provider options' : 'Expand provider options'}
+        >
+          <span className={`provider-toggle-icon ${isExpanded ? 'expanded' : ''}`}>▼</span>
+        </button>
+      </div>
       <div className="current-provider">
         <span className="provider-label">Current:</span>
         <span className="provider-name">
@@ -103,35 +113,39 @@ function ProviderSelector({ currentProvider, onProviderChange }) {
         </span>
       </div>
 
-      {error && (
-        <div className="provider-error">{error}</div>
-      )}
+      {isExpanded && (
+        <>
+          {error && (
+            <div className="provider-error">{error}</div>
+          )}
 
-      <div className="provider-options">
-        {providers.map(provider => (
-          <button
-            key={provider.id}
-            className={`provider-button ${currentProvider === provider.id ? 'active' : ''} ${loading ? 'loading' : ''}`}
-            onClick={() => handleProviderChange(provider.id)}
-            disabled={loading || currentProvider === provider.id || !provider.available}
-          >
-            <div className="provider-icon">{provider.icon}</div>
-            <div className="provider-info">
-              <div className="provider-name-text">{provider.name}</div>
-              <div className="provider-description">{provider.description}</div>
+          <div className="provider-options">
+            {providers.map(provider => (
+              <button
+                key={provider.id}
+                className={`provider-button ${currentProvider === provider.id ? 'active' : ''} ${loading ? 'loading' : ''}`}
+                onClick={() => handleProviderChange(provider.id)}
+                disabled={loading || currentProvider === provider.id || !provider.available}
+              >
+                <div className="provider-icon">{provider.icon}</div>
+                <div className="provider-info">
+                  <div className="provider-name-text">{provider.name}</div>
+                  <div className="provider-description">{provider.description}</div>
+                </div>
+                {currentProvider === provider.id && (
+                  <div className="provider-check">✓</div>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {loading && (
+            <div className="provider-loading">
+              <span className="spinner"></span>
+              Switching provider...
             </div>
-            {currentProvider === provider.id && (
-              <div className="provider-check">✓</div>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {loading && (
-        <div className="provider-loading">
-          <span className="spinner"></span>
-          Switching provider...
-        </div>
+          )}
+        </>
       )}
     </div>
   )

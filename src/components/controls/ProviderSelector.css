@@ -1,23 +1,62 @@
 .provider-selector {
-  padding: 20px;
-  background: var(--background-secondary, #1e1e1e);
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+}
+
+.provider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .provider-selector h3 {
-  margin: 0 0 15px 0;
-  font-size: 1.1em;
-  color: var(--text-primary, #ffffff);
+  margin: 0;
+  font-size: 1em;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+}
+
+.provider-toggle {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.provider-toggle:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.provider-toggle-icon {
+  font-size: 0.75em;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.provider-toggle-icon.expanded {
+  transform: rotate(180deg);
 }
 
 .current-provider {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 15px;
-  padding: 10px;
-  background: var(--background-tertiary, #2a2a2a);
+  margin-bottom: 0;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 6px;
 }
 

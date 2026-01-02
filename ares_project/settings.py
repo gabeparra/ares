@@ -12,9 +12,35 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-me-in-production')
+DEBUG = os.getenv('DEBUG', 'False') == 'True'  # Default to False for security
 
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+# SECURITY: SECRET_KEY should be set via environment variable
+# In development, we allow a default. In production, it's required.
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        import warnings
+        warnings.warn("Using default SECRET_KEY in development. Set DJANGO_SECRET_KEY in production!")
+        SECRET_KEY = 'django-insecure-dev-only-change-in-production'
+    else:
+        import sys
+        print("ERROR: DJANGO_SECRET_KEY environment variable is required in production")
+        print("Generate with: python -c \"import secrets; print(secrets.token_urlsafe(50))\"")
+        sys.exit(1)
+
+# SECURITY: Encryption key for sensitive database fields (GoogleCalendarCredential, etc.)
+FIELD_ENCRYPTION_KEY = os.environ.get('FIELD_ENCRYPTION_KEY', '')
+if not FIELD_ENCRYPTION_KEY:
+    if DEBUG:
+        import warnings
+        warnings.warn("FIELD_ENCRYPTION_KEY not set. Using insecure dev key. DO NOT USE IN PRODUCTION!")
+        # Use a valid Fernet key for development (NOT secure for production)
+        FIELD_ENCRYPTION_KEY = 'ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg='
+    else:
+        import sys
+        print("ERROR: FIELD_ENCRYPTION_KEY is required in production for encrypted database fields")
+        print("Generate a key with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"")
+        sys.exit(1)
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,aresai.space,www.aresai.space').split(',')
 
@@ -27,6 +53,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'encrypted_model_fields',  # SECURITY: Field encryption for sensitive data
     'api',
 ]
 
@@ -84,7 +111,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = os.getenv('TIME_ZONE', 'America/Los_Angeles')  # Default to Pacific Time
+TIME_ZONE = os.getenv('TIME_ZONE', 'America/New_York')  # Default to Eastern Time
 USE_I18N = True
 USE_TZ = True
 
@@ -118,6 +145,17 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Trust proxy headers (required when behind nginx/load balancer)
+# This allows Django to detect HTTPS when behind a reverse proxy
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_TLS = True
+
+# Security settings for HTTPS (when not in DEBUG mode)
+if not DEBUG:
+    SECURE_SSL_REDIRECT = False  # Let nginx handle redirects
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 # Auth0 Configuration
 AUTH0_DOMAIN = os.getenv('AUTH0_DOMAIN', '')

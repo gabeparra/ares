@@ -1,10 +1,10 @@
 .PHONY: run dev lint test format install clean rebuild-model init-ares
 
 run:
-	python manage.py runserver
+	python3 manage.py runserver
 
 dev:
-	python manage.py runserver 0.0.0.0:8000
+	python3 manage.py runserver 0.0.0.0:8000
 
 # Rebuild the Ollama model with updated Modelfile (run on machine with Ollama)
 rebuild-model:

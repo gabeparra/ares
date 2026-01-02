@@ -1,7 +1,7 @@
 .app {
-  max-width: 1800px;
-  margin: 0 auto;
-  padding: 12px 20px 0 20px;
+  width: 100%;
+  margin: 0;
+  padding: 12px;
   height: 100vh;
   height: 100dvh;
   display: flex;
@@ -93,11 +93,6 @@
 
 /* Full HD and larger screens (1920px+) */
 @media (min-width: 1920px) {
-  .app {
-    max-width: 1860px;
-    padding: 10px 30px;
-  }
-
   .header-content {
     padding: 0 10px;
   }
@@ -105,11 +100,6 @@
 
 /* Large screens (1200px - 1919px) - includes 1920x1080 */
 @media (min-width: 1200px) and (max-width: 1919px) {
-  .app {
-    max-width: calc(100% - 40px);
-    padding: 10px 20px;
-  }
-
   .app-header {
     padding: 10px 20px;
     margin-bottom: 10px;
@@ -118,12 +108,6 @@
 
 /* Small screens (below 1024px) */
 @media (max-width: 1023px) {
-  .app {
-    padding: 10px;
-    height: 100vh;
-    height: 100dvh;
-  }
-
   .header-content {
     flex-direction: column;
     align-items: flex-start;
@@ -138,7 +122,7 @@
 /* Very small screens (below 768px) */
 @media (max-width: 767px) {
   .app {
-    padding: 8px 8px 0 8px;
+    padding: 8px;
   }
 
   .header-content {
@@ -193,28 +177,25 @@
 }
 
 .panel {
-  background: linear-gradient(
-    135deg,
-    rgba(26, 26, 32, 0.98) 0%,
-    rgba(22, 22, 28, 0.98) 100%
-  );
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  padding: clamp(12px, 1.5vw, 18px);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: clamp(16px, 2vw, 24px);
   display: flex;
   flex-direction: column;
   min-height: 0;
   flex: 1;
+  width: 100%;
+  max-width: 100%;
   overflow: hidden;
-  backdrop-filter: blur(16px);
+  overflow-x: hidden;
+  box-sizing: border-box;
   transition: all 0.3s ease;
 }
 
 .panel:hover {
-  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .panel h2 {

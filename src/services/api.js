@@ -1,28 +1,10 @@
 /**
  * API service with authentication support
+ *
+ * SECURITY: Uses secure in-memory token storage instead of window object
  */
 
-/**
- * Get the current auth token
- */
-function getAuthToken() {
-  return window.authToken || null
-}
-
-/**
- * Refresh the auth token
- */
-async function refreshAuthToken() {
-  if (window.refreshAuthToken && typeof window.refreshAuthToken === 'function') {
-    try {
-      return await window.refreshAuthToken()
-    } catch (err) {
-      console.error('Failed to refresh token:', err)
-      throw new Error('Token refresh failed')
-    }
-  }
-  throw new Error('Token refresh function not available')
-}
+import { getAuthToken, refreshAuthToken } from './auth.js';
 
 /**
  * Make an authenticated API request with automatic token refresh on 401
@@ -122,5 +104,68 @@ export async function apiDelete(url, options = {}) {
     method: 'DELETE',
     ...options,
   })
+}
+
+/**
+ * Safely parse a response as JSON, handling HTML error pages gracefully
+ * @param {Response} response - The fetch Response object
+ * @returns {Promise<{data: any, error: string|null}>} - Parsed data or error message
+ */
+export async function safeJsonParse(response) {
+  try {
+    const contentType = response.headers.get('content-type') || ''
+    
+    // Check if response is HTML (error page)
+    if (contentType.includes('text/html')) {
+      const htmlText = await response.text()
+      // Extract a meaningful error message from HTML if possible
+      const titleMatch = htmlText.match(/<title>([^<]+)<\/title>/i)
+      const title = titleMatch ? titleMatch[1].trim() : null
+      
+      // Common HTML error patterns
+      if (htmlText.includes('502 Bad Gateway') || htmlText.includes('502')) {
+        return { data: null, error: 'Backend service unavailable (502 Bad Gateway)' }
+      }
+      if (htmlText.includes('503 Service Unavailable') || htmlText.includes('503')) {
+        return { data: null, error: 'Service temporarily unavailable (503)' }
+      }
+      if (htmlText.includes('504 Gateway Timeout') || htmlText.includes('504')) {
+        return { data: null, error: 'Request timeout - server took too long to respond (504)' }
+      }
+      if (htmlText.includes('500 Internal Server Error') || htmlText.includes('500')) {
+        return { data: null, error: 'Server error (500)' }
+      }
+      
+      return { 
+        data: null, 
+        error: title || `Server returned HTML instead of JSON (HTTP ${response.status})` 
+      }
+    }
+    
+    // Try to parse as JSON
+    const text = await response.text()
+    if (!text || text.trim() === '') {
+      return { data: null, error: null }
+    }
+    
+    try {
+      const data = JSON.parse(text)
+      return { data, error: null }
+    } catch (parseError) {
+      // JSON parsing failed - check if it looks like HTML
+      if (text.trim().startsWith('<')) {
+        return { 
+          data: null, 
+          error: `Server returned HTML instead of JSON (HTTP ${response.status})` 
+        }
+      }
+      return { 
+        data: null, 
+        error: `Invalid response format: ${text.substring(0, 100)}...` 
+      }
+    }
+  } catch (err) {
+    return { data: null, error: `Failed to read response: ${err.message}` }
+  }
 }
 

@@ -1,43 +1,68 @@
 /**
- * Auth0 service for fetching configuration and managing authentication
+ * Secure authentication token storage
+ *
+ * SECURITY: Stores tokens in memory only, not in window object or localStorage.
+ * This prevents XSS attacks from accessing tokens via window.authToken.
  */
 
-let authConfig = null
+// Private variables (not accessible from window object or browser console)
+let authToken = null;
+let refreshTokenCallback = null;
 
-export async function getAuthConfig() {
-  if (authConfig) {
-    return authConfig
+/**
+ * Set the authentication token
+ * @param {string} token - The JWT token
+ */
+export const setAuthToken = (token) => {
+  authToken = token;
+};
+
+/**
+ * Get the current authentication token
+ * @returns {string|null} The current token or null
+ */
+export const getAuthToken = () => {
+  return authToken;
+};
+
+/**
+ * Clear the authentication token
+ */
+export const clearAuthToken = () => {
+  authToken = null;
+};
+
+/**
+ * Set the refresh token callback function
+ * @param {Function} callback - Function to call when token needs refresh
+ */
+export const setRefreshTokenCallback = (callback) => {
+  refreshTokenCallback = callback;
+};
+
+/**
+ * Refresh the authentication token
+ * @returns {Promise<string>} The refreshed token
+ */
+export const refreshAuthToken = async () => {
+  if (!refreshTokenCallback) {
+    throw new Error('Refresh token callback not set');
   }
 
   try {
-    const response = await fetch('/api/v1/auth/config')
-    if (!response.ok) {
-      throw new Error('Failed to fetch auth config')
-    }
-    authConfig = await response.json()
-    return authConfig
+    const newToken = await refreshTokenCallback();
+    setAuthToken(newToken);
+    return newToken;
   } catch (error) {
-    console.error('Error fetching auth config:', error)
-    return null
+    clearAuthToken();
+    throw error;
   }
-}
+};
 
-export async function getUserInfo(token) {
-  try {
-    const response = await fetch('/api/v1/auth/user', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    })
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch user info')
-    }
-    
-    return await response.json()
-  } catch (error) {
-    console.error('Error fetching user info:', error)
-    return null
-  }
-}
-
+/**
+ * Initialize auth module (for cleanup)
+ */
+export const clearAuthModule = () => {
+  authToken = null;
+  refreshTokenCallback = null;
+};

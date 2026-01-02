@@ -42,15 +42,16 @@ def settings_prompt(request):
 @csrf_exempt
 def settings_model_config(request):
     """
-    GET: Get the current model configuration (temperature, top_p, top_k, repeat_penalty)
+    GET: Get the current model configuration (temperature, top_p, top_k, repeat_penalty, num_gpu)
     POST: Update the model configuration
     """
-    config_keys = ["temperature", "top_p", "top_k", "repeat_penalty"]
+    config_keys = ["temperature", "top_p", "top_k", "repeat_penalty", "num_gpu"]
     defaults = {
         "temperature": 0.7,
         "top_p": 0.9,
         "top_k": 40,
         "repeat_penalty": 1.1,
+        "num_gpu": 40,
     }
 
     if request.method == 'GET':
@@ -139,66 +140,71 @@ def settings_provider(request):
 def settings_openrouter_models(request):
     """
     GET: Fetch available OpenRouter models
-    Returns a curated list of popular models
+    Returns a curated list organized by cost/performance tiers
     """
     # Get the currently selected model
     current_model = _get_setting("openrouter_model")
     if not current_model:
-        current_model = os.environ.get("OPENROUTER_MODEL", "openai/gpt-3.5-turbo")
+        current_model = os.environ.get("OPENROUTER_MODEL", "deepseek/deepseek-chat")
     
-    # Curated list of popular OpenRouter models
+    # Curated list organized by cost/performance tiers
     models = [
-        # Anthropic Claude
-        {"id": "anthropic/claude-sonnet-4", "name": "Claude Sonnet 4", "provider": "Anthropic"},
-        {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet", "provider": "Anthropic"},
-        {"id": "anthropic/claude-3.5-haiku", "name": "Claude 3.5 Haiku", "provider": "Anthropic"},
-        {"id": "anthropic/claude-3-opus", "name": "Claude 3 Opus", "provider": "Anthropic"},
-        {"id": "anthropic/claude-3-haiku", "name": "Claude 3 Haiku", "provider": "Anthropic"},
-        # OpenAI
-        {"id": "openai/gpt-4o", "name": "GPT-4o", "provider": "OpenAI"},
-        {"id": "openai/gpt-4o-mini", "name": "GPT-4o Mini", "provider": "OpenAI"},
-        {"id": "openai/chatgpt-4o-latest", "name": "ChatGPT-4o Latest", "provider": "OpenAI"},
-        {"id": "openai/o1", "name": "o1", "provider": "OpenAI"},
-        {"id": "openai/o1-mini", "name": "o1 Mini", "provider": "OpenAI"},
-        {"id": "openai/o1-preview", "name": "o1 Preview", "provider": "OpenAI"},
-        {"id": "openai/o3-mini", "name": "o3 Mini", "provider": "OpenAI"},
-        {"id": "openai/gpt-4-turbo", "name": "GPT-4 Turbo", "provider": "OpenAI"},
-        {"id": "openai/gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "provider": "OpenAI"},
-        # Google
-        {"id": "google/gemini-2.0-flash-exp:free", "name": "Gemini 2.0 Flash (Free)", "provider": "Google"},
-        {"id": "google/gemini-2.0-flash-001", "name": "Gemini 2.0 Flash", "provider": "Google"},
-        {"id": "google/gemini-pro-1.5", "name": "Gemini Pro 1.5", "provider": "Google"},
-        {"id": "google/gemini-flash-1.5", "name": "Gemini Flash 1.5", "provider": "Google"},
-        {"id": "google/gemma-2-27b-it", "name": "Gemma 2 27B", "provider": "Google"},
-        # Meta Llama
-        {"id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B", "provider": "Meta"},
-        {"id": "meta-llama/llama-3.1-405b-instruct", "name": "Llama 3.1 405B", "provider": "Meta"},
-        {"id": "meta-llama/llama-3.1-70b-instruct", "name": "Llama 3.1 70B", "provider": "Meta"},
-        {"id": "meta-llama/llama-3.1-8b-instruct", "name": "Llama 3.1 8B", "provider": "Meta"},
-        # Mistral
-        {"id": "mistralai/mistral-large-2411", "name": "Mistral Large 2411", "provider": "Mistral"},
-        {"id": "mistralai/mistral-medium", "name": "Mistral Medium", "provider": "Mistral"},
-        {"id": "mistralai/mistral-small-24b-instruct-2501", "name": "Mistral Small 24B", "provider": "Mistral"},
-        {"id": "mistralai/mixtral-8x22b-instruct", "name": "Mixtral 8x22B", "provider": "Mistral"},
-        {"id": "mistralai/mixtral-8x7b-instruct", "name": "Mixtral 8x7B", "provider": "Mistral"},
-        {"id": "mistralai/codestral-2501", "name": "Codestral 2501", "provider": "Mistral"},
-        # DeepSeek
-        {"id": "deepseek/deepseek-chat", "name": "DeepSeek V3", "provider": "DeepSeek"},
-        {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1", "provider": "DeepSeek"},
-        {"id": "deepseek/deepseek-r1-distill-llama-70b", "name": "DeepSeek R1 Distill 70B", "provider": "DeepSeek"},
-        # Qwen
-        {"id": "qwen/qwen-2.5-72b-instruct", "name": "Qwen 2.5 72B", "provider": "Qwen"},
-        {"id": "qwen/qwen-2.5-coder-32b-instruct", "name": "Qwen 2.5 Coder 32B", "provider": "Qwen"},
-        {"id": "qwen/qwq-32b-preview", "name": "QwQ 32B Preview", "provider": "Qwen"},
-        # xAI
-        {"id": "x-ai/grok-2-1212", "name": "Grok 2", "provider": "xAI"},
-        {"id": "x-ai/grok-beta", "name": "Grok Beta", "provider": "xAI"},
-        # Perplexity
-        {"id": "perplexity/llama-3.1-sonar-large-128k-online", "name": "Sonar Large (Online)", "provider": "Perplexity"},
-        {"id": "perplexity/llama-3.1-sonar-small-128k-online", "name": "Sonar Small (Online)", "provider": "Perplexity"},
-        # Cohere
-        {"id": "cohere/command-r-plus", "name": "Command R+", "provider": "Cohere"},
-        {"id": "cohere/command-r", "name": "Command R", "provider": "Cohere"},
+        # Auto Router - Let OpenRouter pick the best model
+        {"id": "openrouter/auto", "name": "🤖 Auto Router (Smart Selection)", "provider": "OpenRouter", "tier": "auto", "description": "Automatically selects the best model for each task"},
+        
+        # FREE TIER - Best for testing and simple tasks
+        {"id": "deepseek/deepseek-chat", "name": "DeepSeek Chat (FREE) ⭐ Default", "provider": "DeepSeek", "tier": "free", "description": "Free, excellent for general tasks and coding"},
+        {"id": "deepseek/deepseek-v3-base:free", "name": "DeepSeek V3 Base (FREE)", "provider": "DeepSeek", "tier": "free", "description": "Free base model, 131k context"},
+        {"id": "google/gemini-2.0-flash-exp:free", "name": "Gemini 2.0 Flash (FREE)", "provider": "Google", "tier": "free", "description": "Free tier, good for simple tasks"},
+        
+        # ECONOMIC TIER - Best value for money
+        {"id": "google/gemini-2.0-flash-001", "name": "Gemini 2.0 Flash", "provider": "Google", "tier": "economic", "description": "$0.15/$0.60 per 1M tokens - Excellent value, 1M context"},
+        {"id": "openai/gpt-4o-mini", "name": "GPT-4o Mini", "provider": "OpenAI", "tier": "economic", "description": "Very affordable, great for most tasks"},
+        {"id": "anthropic/claude-3.5-haiku", "name": "Claude 3.5 Haiku", "provider": "Anthropic", "tier": "economic", "description": "Fast and cost-effective, good understanding"},
+        {"id": "google/gemini-flash-1.5", "name": "Gemini Flash 1.5", "provider": "Google", "tier": "economic", "description": "Fast and economical"},
+        {"id": "meta-llama/llama-3.1-8b-instruct", "name": "Llama 3.1 8B", "provider": "Meta", "tier": "economic", "description": "Small but capable"},
+        {"id": "mistralai/mixtral-8x7b-instruct", "name": "Mixtral 8x7B", "provider": "Mistral", "tier": "economic", "description": "Good balance of cost and quality"},
+        {"id": "openai/gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "provider": "OpenAI", "tier": "economic", "description": "Classic, very affordable"},
+        
+        # BALANCED TIER - Good performance at reasonable cost
+        {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet", "provider": "Anthropic", "tier": "balanced", "description": "Excellent quality, reasonable cost"},
+        {"id": "openai/gpt-4o", "name": "GPT-4o", "provider": "OpenAI", "tier": "balanced", "description": "Versatile, great for writing and analysis"},
+        {"id": "google/gemini-pro-1.5", "name": "Gemini Pro 1.5", "provider": "Google", "tier": "balanced", "description": "Strong performance, 2M context window"},
+        {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1", "provider": "DeepSeek", "tier": "balanced", "description": "Strong reasoning capabilities"},
+        {"id": "meta-llama/llama-3.1-70b-instruct", "name": "Llama 3.1 70B", "provider": "Meta", "tier": "balanced", "description": "High quality open model"},
+        {"id": "mistralai/mistral-small-24b-instruct-2501", "name": "Mistral Small 24B", "provider": "Mistral", "tier": "balanced", "description": "Recent model with good performance"},
+        {"id": "qwen/qwen-2.5-72b-instruct", "name": "Qwen 2.5 72B", "provider": "Qwen", "tier": "balanced", "description": "Strong multilingual model"},
+        
+        # PREMIUM TIER - Best quality when needed
+        {"id": "anthropic/claude-sonnet-4", "name": "Claude Sonnet 4", "provider": "Anthropic", "tier": "premium", "description": "Latest Claude, best quality"},
+        {"id": "anthropic/claude-3-opus", "name": "Claude 3 Opus", "provider": "Anthropic", "tier": "premium", "description": "Highest quality Claude"},
+        {"id": "openai/o1", "name": "o1", "provider": "OpenAI", "tier": "premium", "description": "Advanced reasoning model"},
+        {"id": "openai/o1-mini", "name": "o1 Mini", "provider": "OpenAI", "tier": "premium", "description": "Smaller reasoning model"},
+        {"id": "openai/o3-mini", "name": "o3 Mini", "provider": "OpenAI", "tier": "premium", "description": "Latest reasoning model"},
+        {"id": "meta-llama/llama-3.1-405b-instruct", "name": "Llama 3.1 405B", "provider": "Meta", "tier": "premium", "description": "Largest open model"},
+        {"id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B", "provider": "Meta", "tier": "premium", "description": "Latest Llama model"},
+        {"id": "mistralai/mistral-large-2411", "name": "Mistral Large 2411", "provider": "Mistral", "tier": "premium", "description": "Latest Mistral large model"},
+        {"id": "google/gemma-2-27b-it", "name": "Gemma 2 27B", "provider": "Google", "tier": "premium", "description": "Large Google model"},
+        
+        # SPECIALIZED TIER - Task-specific models
+        {"id": "deepseek/deepseek-r1-distill-llama-70b", "name": "DeepSeek R1 Distill 70B", "provider": "DeepSeek", "tier": "specialized", "description": "Reasoning-focused, 131k context"},
+        {"id": "mistralai/codestral-2501", "name": "Codestral 2501", "provider": "Mistral", "tier": "specialized", "description": "Code generation specialist"},
+        {"id": "qwen/qwen-2.5-coder-32b-instruct", "name": "Qwen 2.5 Coder 32B", "provider": "Qwen", "tier": "specialized", "description": "Coding specialist"},
+        {"id": "perplexity/llama-3.1-sonar-large-128k-online", "name": "Sonar Large (Online)", "provider": "Perplexity", "tier": "specialized", "description": "Web search enabled"},
+        {"id": "perplexity/llama-3.1-sonar-small-128k-online", "name": "Sonar Small (Online)", "provider": "Perplexity", "tier": "specialized", "description": "Web search enabled"},
+        {"id": "qwen/qwq-32b-preview", "name": "QwQ 32B Preview", "provider": "Qwen", "tier": "specialized", "description": "Reasoning model"},
+        
+        # ALTERNATIVE TIER - Other options
+        {"id": "openai/gpt-4-turbo", "name": "GPT-4 Turbo", "provider": "OpenAI", "tier": "alternative", "description": "Previous generation GPT-4"},
+        {"id": "openai/chatgpt-4o-latest", "name": "ChatGPT-4o Latest", "provider": "OpenAI", "tier": "alternative", "description": "Latest ChatGPT version"},
+        {"id": "x-ai/grok-2-1212", "name": "Grok 2", "provider": "xAI", "tier": "alternative", "description": "xAI's latest model"},
+        {"id": "x-ai/grok-beta", "name": "Grok Beta", "provider": "xAI", "tier": "alternative", "description": "xAI beta model"},
+        {"id": "cohere/command-r-plus", "name": "Command R+", "provider": "Cohere", "tier": "alternative", "description": "Cohere's advanced model"},
+        {"id": "cohere/command-r", "name": "Command R", "provider": "Cohere", "tier": "alternative", "description": "Cohere model"},
+        {"id": "mistralai/mistral-medium", "name": "Mistral Medium", "provider": "Mistral", "tier": "alternative", "description": "Mistral medium model"},
+        {"id": "mistralai/mixtral-8x22b-instruct", "name": "Mixtral 8x22B", "provider": "Mistral", "tier": "alternative", "description": "Large Mixtral model"},
+        {"id": "anthropic/claude-3-haiku", "name": "Claude 3 Haiku", "provider": "Anthropic", "tier": "alternative", "description": "Previous generation Haiku"},
+        {"id": "openai/o1-preview", "name": "o1 Preview", "provider": "OpenAI", "tier": "alternative", "description": "o1 preview version"},
     ]
     
     return JsonResponse({
@@ -216,7 +222,7 @@ def settings_openrouter_model(request):
     """
     if request.method == 'GET':
         stored = _get_setting("openrouter_model")
-        model = stored if stored else os.environ.get("OPENROUTER_MODEL", "openai/gpt-3.5-turbo")
+        model = stored if stored else os.environ.get("OPENROUTER_MODEL", "deepseek/deepseek-chat")
         return JsonResponse({"model": model})
     
     elif request.method == 'POST':
@@ -236,6 +242,32 @@ def settings_openrouter_model(request):
         
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET", "POST"])
+@csrf_exempt
+def settings_openrouter_auto_select(request):
+    """
+    GET: Get whether auto model selection is enabled
+    POST: Enable/disable auto model selection
+    """
+    if request.method == 'GET':
+        auto_select = _get_setting("openrouter_auto_select")
+        auto_select = auto_select and auto_select.lower() in ("true", "1", "yes")
+        return JsonResponse({"auto_select": auto_select})
+    
+    elif request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            auto_select = data.get('auto_select', False)
+            _set_setting("openrouter_auto_select", "true" if auto_select else "false")
+            return JsonResponse({
+                'success': True,
+                'auto_select': auto_select,
+                'message': f'Auto model selection {"enabled" if auto_select else "disabled"}',
+            })
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
@@ -280,6 +312,8 @@ def settings_agent(request):
                 _set_setting("agent_url", url)
             
             # Update agent API key if provided
+            # Empty string means clear the key (user explicitly cleared it)
+            # If key is not in data, preserve existing value
             if 'agent_api_key' in data:
                 _set_setting("agent_api_key", data['agent_api_key'])
             
@@ -291,6 +325,51 @@ def settings_agent(request):
             return JsonResponse({
                 'success': True,
                 'message': 'Agent configuration saved successfully',
+            })
+        
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET", "POST"])
+@csrf_exempt
+def settings_tab_visibility(request):
+    """
+    GET: Get tab visibility settings
+    POST: Update tab visibility settings
+    
+    Controls which tabs are visible in the UI.
+    """
+    if request.method == 'GET':
+        # Default visibility (all tabs visible by default)
+        defaults = {
+            "sdapi": True,
+        }
+        
+        visibility = {}
+        for tab_id, default_value in defaults.items():
+            stored = _get_setting(f"tab_visibility_{tab_id}")
+            if stored is not None:
+                visibility[tab_id] = stored.lower() in ("true", "1", "yes")
+            else:
+                visibility[tab_id] = default_value
+        
+        return JsonResponse({"visibility": visibility})
+    
+    elif request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            visibility = data.get('visibility', {})
+            
+            # Update each tab visibility setting
+            for tab_id, is_visible in visibility.items():
+                _set_setting(f"tab_visibility_{tab_id}", "true" if is_visible else "false")
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Tab visibility settings saved successfully',
             })
         
         except json.JSONDecodeError:

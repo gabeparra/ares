@@ -112,5 +112,15 @@ export default defineConfig({
   build: {
     outDir: 'web/dist',
     emptyOutDir: true,
+    chunkSizeWarningLimit: 800, // react-syntax-highlighter is ~736KB
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          auth: ['@auth0/auth0-react'],
+          markdown: ['react-markdown', 'react-syntax-highlighter'],
+        },
+      },
+    },
   },
 })
