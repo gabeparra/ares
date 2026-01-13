@@ -8,7 +8,10 @@ This module handles:
 - Extracting memories from conversations
 - Tracking which conversations have been revised
 - Maintaining important values from previous extractions
-- Automated hourly revision process
+- Manual revision process (run via: python3 manage.py revise_memories)
+
+NOTE: Memory revision is MANUAL only - it makes external API calls to OpenRouter.
+      Run it when you want to analyze conversations for new memories.
 """
 
 import json
@@ -55,6 +58,9 @@ def _call_openrouter_for_extraction(messages: List[Dict], system_prompt: str) ->
     
     # Try service URL first (TypeScript wrapper), fallback to direct API
     try:
+        # Internal API key for service-to-service authentication
+        internal_api_key = os.environ.get("INTERNAL_API_KEY", "change-me-in-production")
+        
         payload = {
             "model": model,
             "messages": [{"role": "system", "content": system_prompt}] + messages,
@@ -66,6 +72,7 @@ def _call_openrouter_for_extraction(messages: List[Dict], system_prompt: str) ->
             response = client.post(
                 f"{service_url}/v1/chat/completions",
                 json=payload,
+                headers={"X-API-KEY": internal_api_key},
             )
             response.raise_for_status()
             result = response.json()
@@ -187,7 +194,7 @@ def _get_existing_memories_for_session(session_id: str) -> Dict:
         from api.models import MemorySpot
         
         existing = MemorySpot.objects.filter(
-            session_id=session_id,
+            session__session_id=session_id,
             status__in=["extracted", "reviewed", "applied"]
         ).order_by("-importance", "-confidence")
         
@@ -353,10 +360,14 @@ Format your response as JSON only, no markdown or explanations.""".format(
     try:
         # Try service URL first, fallback to direct API
         try:
+            # Internal API key for service-to-service authentication
+            internal_api_key = os.environ.get("INTERNAL_API_KEY", "change-me-in-production")
+            
             with httpx.Client(timeout=120.0) as client:
                 response = client.post(
                     f"{service_url}/v1/chat/completions",
                     json=payload,
+                    headers={"X-API-KEY": internal_api_key},
                 )
                 response.raise_for_status()
                 result = response.json()
@@ -451,7 +462,7 @@ def extract_memories_from_conversation(
         if revision:
             # Check if this session was recently revised
             last_revision = MemorySpot.objects.filter(
-                session_id=session_id,
+                session__session_id=session_id,
                 status__in=["extracted", "reviewed", "applied"]
             ).order_by("-extracted_at").first()
             
@@ -658,14 +669,14 @@ Be conservative - quality over quantity."""
         
         # Log filtering results if filtering was performed
         if has_existing:
-            original_count = sum(
+            original_count = (
                 len(extracted_data.get("user_facts", [])) +
                 len(extracted_data.get("user_preferences", [])) +
                 len(extracted_data.get("ai_self_memories", [])) +
                 len(extracted_data.get("capabilities", [])) +
                 len(extracted_data.get("general_memories", []))
             )
-            filtered_count = sum(
+            filtered_count = (
                 len(filtered_data.get("user_facts", [])) +
                 len(filtered_data.get("user_preferences", [])) +
                 len(filtered_data.get("ai_self_memories", [])) +
@@ -696,7 +707,7 @@ Be conservative - quality over quantity."""
                         if fact_key:
                             # Check existing spots for this session and type
                             existing_spots = MemorySpot.objects.filter(
-                                session_id=session_id,
+                                session__session_id=session_id,
                                 memory_type=MemorySpot.TYPE_USER_FACT,
                                 status__in=["extracted", "reviewed", "applied"]
                             )
@@ -740,7 +751,7 @@ Be conservative - quality over quantity."""
                         pref_key = pref_data.get("key")
                         if pref_key:
                             existing_spots = MemorySpot.objects.filter(
-                                session_id=session_id,
+                                session__session_id=session_id,
                                 memory_type=MemorySpot.TYPE_USER_PREFERENCE,
                                 status__in=["extracted", "reviewed", "applied"]
                             )
@@ -780,7 +791,7 @@ Be conservative - quality over quantity."""
                         mem_key = mem_data.get("key")
                         if mem_key:
                             existing_spots = MemorySpot.objects.filter(
-                                session_id=session_id,
+                                session__session_id=session_id,
                                 memory_type=MemorySpot.TYPE_AI_SELF_MEMORY,
                                 status__in=["extracted", "reviewed", "applied"]
                             )
@@ -820,7 +831,7 @@ Be conservative - quality over quantity."""
                         cap_name = cap_data.get("name")
                         if cap_name:
                             existing_spots = MemorySpot.objects.filter(
-                                session_id=session_id,
+                                session__session_id=session_id,
                                 memory_type=MemorySpot.TYPE_CAPABILITY,
                                 status__in=["extracted", "reviewed", "applied"]
                             )
@@ -876,13 +887,17 @@ Be conservative - quality over quantity."""
         return 0, [f"Unexpected error: {str(e)}"]
 
 
-def revise_memories_hourly(limit: int = 20) -> Dict:
+def revise_memories(limit: int = 20, days_back: Optional[int] = None) -> Dict:
     """
-    Hourly revision process: Re-analyze conversations to extract new memories
+    Manual revision process: Re-analyze conversations to extract new memories
     and maintain important existing values.
+    
+    NOTE: This function makes external API calls to OpenRouter. Run manually
+    via: python3 manage.py revise_memories
     
     Args:
         limit: Maximum number of sessions to process per run
+        days_back: How many days back to look for sessions (None = all sessions)
     
     Returns:
         Dict with stats about the revision process
@@ -891,32 +906,56 @@ def revise_memories_hourly(limit: int = 20) -> Dict:
         from api.models import ChatSession, MemorySpot, ConversationMessage
         from django.db.models import Count
         
-        _get_logger().info("Starting hourly memory revision...")
+        _get_logger().info("Starting manual memory revision...")
         
         # Get sessions that:
         # 1. Have at least 5 messages
-        # 2. Have been updated in the last 24 hours (active conversations)
-        # 3. Haven't been revised in the last hour
+        # 2. Haven't been revised in the last hour
+        # 3. Have NOT been reviewed, applied, or rejected (these are final states)
+        # 4. Optionally filtered by update date if days_back is specified
         cutoff_time = timezone.now() - timedelta(hours=1)
-        day_ago = timezone.now() - timedelta(days=1)
         
-        # Get recently revised sessions
+        # Get recently revised sessions (skip these)
         recently_revised = set(
             MemorySpot.objects.filter(
                 extracted_at__gte=cutoff_time
-            ).values_list("session_id", flat=True).distinct()
+            ).values_list("session__session_id", flat=True).distinct()
         )
         
-        # Get active sessions with enough messages
-        sessions = ChatSession.objects.filter(
-            updated_at__gte=day_ago
-        ).exclude(
+        # Get sessions with final status (reviewed, applied, rejected) - never reprocess these
+        final_status_sessions = set(
+            MemorySpot.objects.exclude(session__isnull=True)
+            .filter(status__in=[
+                MemorySpot.STATUS_REVIEWED,
+                MemorySpot.STATUS_APPLIED,
+                MemorySpot.STATUS_REJECTED
+            ])
+            .values_list("session__session_id", flat=True)
+            .distinct()
+        )
+        
+        # Build query for sessions with enough messages
+        # Exclude recently revised and final status sessions
+        sessions_query = ChatSession.objects.exclude(
             session_id__in=recently_revised
+        ).exclude(
+            session_id__in=final_status_sessions
         ).annotate(
             message_count=Count("messages")
         ).filter(
             message_count__gte=5
-        ).order_by("-updated_at")[:limit]
+        )
+        
+        # Optionally filter by date if days_back is specified
+        if days_back is not None:
+            date_cutoff = timezone.now() - timedelta(days=days_back)
+            sessions_query = sessions_query.filter(updated_at__gte=date_cutoff)
+            _get_logger().info(f"Filtering sessions updated in the last {days_back} days")
+        else:
+            _get_logger().info("Processing all sessions (no date filter)")
+        
+        # Order by most recently updated and apply limit
+        sessions = sessions_query.order_by("-updated_at")[:limit]
         
         total_sessions = sessions.count()
         _get_logger().info(f"Found {total_sessions} sessions to revise")
@@ -932,7 +971,7 @@ def revise_memories_hourly(limit: int = 20) -> Dict:
             try:
                 # Check if session was revised less than an hour ago
                 last_revision = MemorySpot.objects.filter(
-                    session_id=session.session_id
+                    session__session_id=session.session_id
                 ).order_by("-extracted_at").first()
                 
                 if last_revision:
@@ -963,14 +1002,14 @@ def revise_memories_hourly(limit: int = 20) -> Dict:
                 stats["errors"].append(f"Session {session.session_id}: {str(e)}")
         
         _get_logger().info(
-            f"Hourly revision complete: {stats['sessions_processed']} processed, "
+            f"Manual revision complete: {stats['sessions_processed']} processed, "
             f"{stats['total_extracted']} memories extracted"
         )
         
         return stats
         
     except Exception as e:
-        _get_logger().error(f"Hourly revision failed: {e}")
+        _get_logger().error(f"Manual revision failed: {e}")
         return {"error": str(e)}
 
 

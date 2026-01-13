@@ -140,76 +140,145 @@ def settings_provider(request):
 def settings_openrouter_models(request):
     """
     GET: Fetch available OpenRouter models
-    Returns a curated list organized by cost/performance tiers
+    Returns all available models organized by company/provider
     """
     # Get the currently selected model
     current_model = _get_setting("openrouter_model")
     if not current_model:
         current_model = os.environ.get("OPENROUTER_MODEL", "deepseek/deepseek-chat")
     
-    # Curated list organized by cost/performance tiers
-    models = [
-        # Auto Router - Let OpenRouter pick the best model
-        {"id": "openrouter/auto", "name": "🤖 Auto Router (Smart Selection)", "provider": "OpenRouter", "tier": "auto", "description": "Automatically selects the best model for each task"},
-        
-        # FREE TIER - Best for testing and simple tasks
-        {"id": "deepseek/deepseek-chat", "name": "DeepSeek Chat (FREE) ⭐ Default", "provider": "DeepSeek", "tier": "free", "description": "Free, excellent for general tasks and coding"},
-        {"id": "deepseek/deepseek-v3-base:free", "name": "DeepSeek V3 Base (FREE)", "provider": "DeepSeek", "tier": "free", "description": "Free base model, 131k context"},
-        {"id": "google/gemini-2.0-flash-exp:free", "name": "Gemini 2.0 Flash (FREE)", "provider": "Google", "tier": "free", "description": "Free tier, good for simple tasks"},
-        
-        # ECONOMIC TIER - Best value for money
-        {"id": "google/gemini-2.0-flash-001", "name": "Gemini 2.0 Flash", "provider": "Google", "tier": "economic", "description": "$0.15/$0.60 per 1M tokens - Excellent value, 1M context"},
-        {"id": "openai/gpt-4o-mini", "name": "GPT-4o Mini", "provider": "OpenAI", "tier": "economic", "description": "Very affordable, great for most tasks"},
-        {"id": "anthropic/claude-3.5-haiku", "name": "Claude 3.5 Haiku", "provider": "Anthropic", "tier": "economic", "description": "Fast and cost-effective, good understanding"},
-        {"id": "google/gemini-flash-1.5", "name": "Gemini Flash 1.5", "provider": "Google", "tier": "economic", "description": "Fast and economical"},
-        {"id": "meta-llama/llama-3.1-8b-instruct", "name": "Llama 3.1 8B", "provider": "Meta", "tier": "economic", "description": "Small but capable"},
-        {"id": "mistralai/mixtral-8x7b-instruct", "name": "Mixtral 8x7B", "provider": "Mistral", "tier": "economic", "description": "Good balance of cost and quality"},
-        {"id": "openai/gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "provider": "OpenAI", "tier": "economic", "description": "Classic, very affordable"},
-        
-        # BALANCED TIER - Good performance at reasonable cost
-        {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet", "provider": "Anthropic", "tier": "balanced", "description": "Excellent quality, reasonable cost"},
-        {"id": "openai/gpt-4o", "name": "GPT-4o", "provider": "OpenAI", "tier": "balanced", "description": "Versatile, great for writing and analysis"},
-        {"id": "google/gemini-pro-1.5", "name": "Gemini Pro 1.5", "provider": "Google", "tier": "balanced", "description": "Strong performance, 2M context window"},
-        {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1", "provider": "DeepSeek", "tier": "balanced", "description": "Strong reasoning capabilities"},
-        {"id": "meta-llama/llama-3.1-70b-instruct", "name": "Llama 3.1 70B", "provider": "Meta", "tier": "balanced", "description": "High quality open model"},
-        {"id": "mistralai/mistral-small-24b-instruct-2501", "name": "Mistral Small 24B", "provider": "Mistral", "tier": "balanced", "description": "Recent model with good performance"},
-        {"id": "qwen/qwen-2.5-72b-instruct", "name": "Qwen 2.5 72B", "provider": "Qwen", "tier": "balanced", "description": "Strong multilingual model"},
-        
-        # PREMIUM TIER - Best quality when needed
-        {"id": "anthropic/claude-sonnet-4", "name": "Claude Sonnet 4", "provider": "Anthropic", "tier": "premium", "description": "Latest Claude, best quality"},
-        {"id": "anthropic/claude-3-opus", "name": "Claude 3 Opus", "provider": "Anthropic", "tier": "premium", "description": "Highest quality Claude"},
-        {"id": "openai/o1", "name": "o1", "provider": "OpenAI", "tier": "premium", "description": "Advanced reasoning model"},
-        {"id": "openai/o1-mini", "name": "o1 Mini", "provider": "OpenAI", "tier": "premium", "description": "Smaller reasoning model"},
-        {"id": "openai/o3-mini", "name": "o3 Mini", "provider": "OpenAI", "tier": "premium", "description": "Latest reasoning model"},
-        {"id": "meta-llama/llama-3.1-405b-instruct", "name": "Llama 3.1 405B", "provider": "Meta", "tier": "premium", "description": "Largest open model"},
-        {"id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B", "provider": "Meta", "tier": "premium", "description": "Latest Llama model"},
-        {"id": "mistralai/mistral-large-2411", "name": "Mistral Large 2411", "provider": "Mistral", "tier": "premium", "description": "Latest Mistral large model"},
-        {"id": "google/gemma-2-27b-it", "name": "Gemma 2 27B", "provider": "Google", "tier": "premium", "description": "Large Google model"},
-        
-        # SPECIALIZED TIER - Task-specific models
-        {"id": "deepseek/deepseek-r1-distill-llama-70b", "name": "DeepSeek R1 Distill 70B", "provider": "DeepSeek", "tier": "specialized", "description": "Reasoning-focused, 131k context"},
-        {"id": "mistralai/codestral-2501", "name": "Codestral 2501", "provider": "Mistral", "tier": "specialized", "description": "Code generation specialist"},
-        {"id": "qwen/qwen-2.5-coder-32b-instruct", "name": "Qwen 2.5 Coder 32B", "provider": "Qwen", "tier": "specialized", "description": "Coding specialist"},
-        {"id": "perplexity/llama-3.1-sonar-large-128k-online", "name": "Sonar Large (Online)", "provider": "Perplexity", "tier": "specialized", "description": "Web search enabled"},
-        {"id": "perplexity/llama-3.1-sonar-small-128k-online", "name": "Sonar Small (Online)", "provider": "Perplexity", "tier": "specialized", "description": "Web search enabled"},
-        {"id": "qwen/qwq-32b-preview", "name": "QwQ 32B Preview", "provider": "Qwen", "tier": "specialized", "description": "Reasoning model"},
-        
-        # ALTERNATIVE TIER - Other options
-        {"id": "openai/gpt-4-turbo", "name": "GPT-4 Turbo", "provider": "OpenAI", "tier": "alternative", "description": "Previous generation GPT-4"},
-        {"id": "openai/chatgpt-4o-latest", "name": "ChatGPT-4o Latest", "provider": "OpenAI", "tier": "alternative", "description": "Latest ChatGPT version"},
-        {"id": "x-ai/grok-2-1212", "name": "Grok 2", "provider": "xAI", "tier": "alternative", "description": "xAI's latest model"},
-        {"id": "x-ai/grok-beta", "name": "Grok Beta", "provider": "xAI", "tier": "alternative", "description": "xAI beta model"},
-        {"id": "cohere/command-r-plus", "name": "Command R+", "provider": "Cohere", "tier": "alternative", "description": "Cohere's advanced model"},
-        {"id": "cohere/command-r", "name": "Command R", "provider": "Cohere", "tier": "alternative", "description": "Cohere model"},
-        {"id": "mistralai/mistral-medium", "name": "Mistral Medium", "provider": "Mistral", "tier": "alternative", "description": "Mistral medium model"},
-        {"id": "mistralai/mixtral-8x22b-instruct", "name": "Mixtral 8x22B", "provider": "Mistral", "tier": "alternative", "description": "Large Mixtral model"},
-        {"id": "anthropic/claude-3-haiku", "name": "Claude 3 Haiku", "provider": "Anthropic", "tier": "alternative", "description": "Previous generation Haiku"},
-        {"id": "openai/o1-preview", "name": "o1 Preview", "provider": "OpenAI", "tier": "alternative", "description": "o1 preview version"},
-    ]
+    # Fetch all models from OpenRouter API
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+    
+    models = []
+    providers_dict = {}
+    
+    # Add Auto Router as a special option
+    models.append({
+        "id": "openrouter/auto",
+        "name": "🤖 Auto Router (Smart Selection)",
+        "provider": "OpenRouter",
+        "description": "Automatically selects the best model for each task"
+    })
+    providers_dict["OpenRouter"] = ["openrouter/auto"]
+    
+    # Try to fetch models from OpenRouter API
+    if api_key:
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                response = client.get(
+                    f"{base_url}/models",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                    }
+                )
+                response.raise_for_status()
+                data = response.json()
+                api_models = data.get("data", [])
+                
+                # Process each model from the API
+                for model_data in api_models:
+                    model_id = model_data.get("id", "")
+                    if not model_id:
+                        continue
+                    
+                    # Extract provider from model ID (format: provider/model-name)
+                    provider_raw = model_id.split("/")[0] if "/" in model_id else "Unknown"
+                    provider_raw_lower = provider_raw.lower()
+                    
+                    # Special handling for known providers (case-insensitive)
+                    provider_mapping = {
+                        "openai": "OpenAI",
+                        "anthropic": "Anthropic",
+                        "google": "Google",
+                        "meta-llama": "Meta",
+                        "meta": "Meta",
+                        "mistralai": "Mistral",
+                        "mistral": "Mistral",
+                        "deepseek": "DeepSeek",
+                        "qwen": "Qwen",
+                        "x-ai": "xAI",
+                        "xai": "xAI",
+                        "cohere": "Cohere",
+                        "perplexity": "Perplexity",
+                        "openrouter": "OpenRouter",
+                    }
+                    # Get normalized provider name, or format it nicely if not in mapping
+                    provider_name = provider_mapping.get(provider_raw_lower)
+                    if not provider_name:
+                        # Format unknown providers nicely
+                        provider_name = provider_raw.replace("-", " ").title()
+                    
+                    # Get model name and description
+                    model_name = model_data.get("name", model_id)
+                    context_length = model_data.get("context_length")
+                    pricing = model_data.get("pricing", {})
+                    
+                    # Build description
+                    description_parts = []
+                    if context_length:
+                        description_parts.append(f"{context_length:,} context")
+                    if pricing:
+                        prompt_price = pricing.get("prompt", "")
+                        completion_price = pricing.get("completion", "")
+                        if prompt_price or completion_price:
+                            price_str = f"${prompt_price}/${completion_price} per 1M tokens"
+                            description_parts.append(price_str)
+                    description = " - ".join(description_parts) if description_parts else ""
+                    
+                    # Add model to list
+                    model_entry = {
+                        "id": model_id,
+                        "name": model_name,
+                        "provider": provider_name,
+                        "description": description
+                    }
+                    models.append(model_entry)
+                    
+                    # Track by provider
+                    if provider_name not in providers_dict:
+                        providers_dict[provider_name] = []
+                    providers_dict[provider_name].append(model_id)
+                    
+        except Exception as e:
+            # If API fetch fails, log error but continue with empty list
+            # The frontend will handle the empty list gracefully
+            print(f"[WARNING] Failed to fetch OpenRouter models: {e}")
+            # Fall back to a minimal curated list if API fails
+            models = [
+                {"id": "openrouter/auto", "name": "🤖 Auto Router (Smart Selection)", "provider": "OpenRouter", "description": "Automatically selects the best model for each task"},
+                {"id": "deepseek/deepseek-chat", "name": "DeepSeek Chat (FREE) ⭐ Default", "provider": "DeepSeek", "description": "Free, excellent for general tasks and coding"},
+            ]
+            providers_dict = {"OpenRouter": ["openrouter/auto"], "DeepSeek": ["deepseek/deepseek-chat"]}
+    else:
+        # No API key, return minimal list
+        models = [
+            {"id": "openrouter/auto", "name": "🤖 Auto Router (Smart Selection)", "provider": "OpenRouter", "description": "Automatically selects the best model for each task"},
+            {"id": "deepseek/deepseek-chat", "name": "DeepSeek Chat (FREE) ⭐ Default", "provider": "DeepSeek", "description": "Free, excellent for general tasks and coding"},
+        ]
+        providers_dict = {"OpenRouter": ["openrouter/auto"], "DeepSeek": ["deepseek/deepseek-chat"]}
+    
+    # Sort models: OpenAI first, then alphabetically by provider, then by model name
+    def sort_key(model):
+        provider = model.get("provider", "ZZZ")
+        name = model.get("name", "")
+        # OpenAI gets priority
+        if provider == "OpenAI":
+            return (0, provider, name)
+        return (1, provider, name)
+    
+    models.sort(key=sort_key)
+    
+    # Verify all OpenAI models are included (special focus)
+    openai_models = [m for m in models if m.get("provider") == "OpenAI"]
+    openai_model_ids = [m.get("id", "") for m in openai_models]
     
     return JsonResponse({
         "models": models,
         "current_model": current_model,
+        "providers": list(providers_dict.keys()),
+        "openai_model_count": len(openai_models),
     })
 
 

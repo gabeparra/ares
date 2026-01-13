@@ -170,6 +170,26 @@ AUTH0_AUDIENCE = os.getenv('AUTH0_AUDIENCE', '')
 AUTH0_M2M_CLIENT_ID = os.getenv('AUTH0_M2M_CLIENT_ID', '')
 AUTH0_M2M_CLIENT_SECRET = os.getenv('AUTH0_M2M_CLIENT_SECRET', '')
 
+# Auth0 Admin Role ID - the role ID that grants admin access to the application
+# Find this in Auth0 Dashboard > User Management > Roles > [Your Admin Role] > Copy Role ID
+AUTH0_ADMIN_ROLE_ID = os.getenv('AUTH0_ADMIN_ROLE_ID', '')
+
+# DEV MODE: Admin user for testing
+# Set DEV_ADMIN_ENABLED=True environment variable to enable dev admin bypass
+# WARNING: Never enable in production!
+DEV_ADMIN_ENABLED = os.getenv('DEV_ADMIN_ENABLED', 'False') == 'True'
+DEV_ADMIN_EMAIL = os.getenv('DEV_ADMIN_EMAIL', 'admin@test.local')
+DEV_ADMIN_PASSWORD = os.getenv('DEV_ADMIN_PASSWORD', 'admin123')
+DEV_ADMIN_USER_ID = os.getenv('DEV_ADMIN_USER_ID', '')
+
+if DEV_ADMIN_ENABLED and not DEBUG:
+    import warnings
+    warnings.warn("DEV_ADMIN_ENABLED is True but DEBUG is False. This is a security risk!")
+
+if DEV_ADMIN_ENABLED and not DEV_ADMIN_USER_ID:
+    import warnings
+    warnings.warn("DEV_ADMIN_ENABLED is True but DEV_ADMIN_USER_ID is not set. Dev admin login will not work properly!")
+
 # GEMMA AI API Configuration
 GEMMA_AI_API_URL = os.getenv('GEMMA_AI_API_URL', 'http://localhost:60006')
 
@@ -190,6 +210,7 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 BACKEND_LOG_FILE = LOG_DIR / "backend.log"
 
 from django.utils import timezone as django_timezone
+import time
 
 class TimezoneFormatter(logging.Formatter):
     """Custom formatter that uses Django's TIME_ZONE setting"""
@@ -199,6 +220,32 @@ class TimezoneFormatter(logging.Formatter):
         if datefmt:
             return dt.strftime(datefmt)
         return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+class ThrottleProviderSettingsFilter(logging.Filter):
+    """Filter to throttle frequent logs from /api/v1/settings/provider endpoint"""
+    def __init__(self, throttle_seconds=60):
+        super().__init__()
+        self.throttle_seconds = throttle_seconds
+        self.last_logged = {}
+    
+    def filter(self, record):
+        # Check if this is a django.server log message
+        if record.name == 'django.server':
+            message = record.getMessage()
+            # Check if message contains the settings/provider endpoint
+            if '/api/v1/settings/provider' in message:
+                current_time = time.time()
+                # Get the last time we logged this endpoint
+                last_time = self.last_logged.get('/api/v1/settings/provider', 0)
+                # Only log if enough time has passed
+                if current_time - last_time >= self.throttle_seconds:
+                    self.last_logged['/api/v1/settings/provider'] = current_time
+                    return True
+                else:
+                    # Suppress this log
+                    return False
+        # Allow all other logs
+        return True
 
 LOGGING = {
     "version": 1,
@@ -210,15 +257,23 @@ LOGGING = {
             "datefmt": "%Y-%m-%d %H:%M:%S %Z",
         }
     },
+    "filters": {
+        "throttle_provider_settings": {
+            "()": ThrottleProviderSettingsFilter,
+            "throttle_seconds": 60,  # Only log once per minute
+        },
+    },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "standard",
+            "filters": ["throttle_provider_settings"],
         },
         "file": {
             "class": "logging.FileHandler",
             "filename": str(BACKEND_LOG_FILE),
             "formatter": "standard",
+            "filters": ["throttle_provider_settings"],
         },
     },
     "root": {
@@ -230,7 +285,12 @@ LOGGING = {
             "handlers": ["console", "file"],
             "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
             "propagate": False,
-        }
+        },
+        "django.server": {
+            "handlers": ["console", "file"],
+            "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
+            "propagate": False,
+        },
     },
 }
 

@@ -7,6 +7,17 @@
 import { getAuthToken, refreshAuthToken } from './auth.js';
 
 /**
+ * Trigger re-login by dispatching a custom event
+ * This allows App.jsx to listen for auth failures and trigger loginWithRedirect
+ */
+function triggerReLogin() {
+  // Dispatch a custom event that App.jsx can listen to
+  window.dispatchEvent(new CustomEvent('ares:auth-required', {
+    detail: { reason: 'Token refresh failed' }
+  }));
+}
+
+/**
  * Make an authenticated API request with automatic token refresh on 401
  */
 export async function apiRequest(url, options = {}, retryCount = 0) {
@@ -52,12 +63,16 @@ export async function apiRequest(url, options = {}, retryCount = 0) {
       }
     } catch (refreshError) {
       console.error('Token refresh failed:', refreshError)
+      // Trigger re-login event before throwing error
+      triggerReLogin()
       // If refresh fails, throw authentication error
       throw new Error('Authentication required - please log in again')
     }
   }
   
   if (response.status === 401) {
+    // Trigger re-login event for 401 errors
+    triggerReLogin()
     throw new Error('Authentication required - please log in again')
   }
   

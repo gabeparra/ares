@@ -1,9 +1,10 @@
 import React from 'react'
-import './StatusText.css'
 
 function StatusText({ isConnected }) {
   return (
-    <span className={`connection-status-text ${isConnected ? 'connection-status-connected' : 'connection-status-disconnected'}`}>
+    <span className={`font-semibold tracking-wide leading-tight whitespace-nowrap flex-shrink-0 inline-block ${
+      isConnected ? 'text-green-400/90' : 'text-red-500/90'
+    }`}>
       {isConnected ? 'Connected' : 'Disconnected'}
     </span>
   )

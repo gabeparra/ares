@@ -247,6 +247,7 @@ def calendar_oauth_callback(request):
     })
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 @require_auth
 def calendar_disconnect(request):
@@ -349,6 +350,7 @@ def calendar_events(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 @require_auth
 def calendar_sync(request):
@@ -598,14 +600,24 @@ def get_calendar_context_summary(user_id: str = "default", message: str = "") ->
     Analyzes the user message to determine what calendar information is relevant
     and fetches appropriate events.
     
-    Returns a formatted string with calendar information, or empty string if
-    calendar is not connected or no relevant events found.
+    Always returns calendar context, even if calendar is not connected, so the AI
+    is aware of calendar functionality.
     """
     try:
+        logger.info(f"[CALENDAR CONTEXT] Getting calendar context for user_id={user_id}")
+        print(f"[CALENDAR CONTEXT] Getting calendar context for user_id={user_id}")
+        
         # Check if calendar is connected
         creds = _get_google_credentials(user_id)
         if not creds:
-            return ""  # Calendar not connected, return empty (don't mention it)
+            logger.info(f"[CALENDAR CONTEXT] No credentials found for user_id={user_id}")
+            print(f"[CALENDAR CONTEXT] No credentials found for user_id={user_id}")
+            # Calendar not connected, but still provide context so AI knows about calendar
+            return """## Calendar Information
+
+You have access to calendar functionality. However, the calendar is not currently connected.
+The user can connect their Google Calendar to enable calendar features.
+When calendar is connected, you can reference events, meetings, and schedule information."""
         
         # Always include calendar context if connected (not just for calendar-related prompts)
         # This allows the AI to analyze and reference calendar in any context
@@ -636,7 +648,12 @@ def get_calendar_context_summary(user_id: str = "default", message: str = "") ->
             cred_record = GoogleCalendarCredential.objects.get(user_id=canonical_user_id)
             calendar_id = cred_record.calendar_id or "primary"
         except GoogleCalendarCredential.DoesNotExist:
-            return ""
+            # Credentials exist but record not found, still provide context
+            return """## Calendar Information
+
+You have access to calendar functionality. However, the calendar is not currently connected.
+The user can connect their Google Calendar to enable calendar features.
+When calendar is connected, you can reference events, meetings, and schedule information."""
         
         # Fetch events
         events_result = service.events().list(
@@ -652,7 +669,12 @@ def get_calendar_context_summary(user_id: str = "default", message: str = "") ->
         
         if not events:
             logger.info(f"No calendar events found for user {user_id} in range {time_min} to {time_max}")
-            return ""  # No events found, return empty
+            # No events found, but still provide context so AI knows calendar is connected
+            time_range_str = f"{time_min.strftime('%Y-%m-%d')} to {time_max.strftime('%Y-%m-%d')}"
+            return f"""## Calendar Information
+
+You have access to the user's calendar. The calendar is connected, but there are no events in the range {time_range_str}.
+You can still reference calendar functionality when answering questions about the user's schedule or availability."""
         
         # Log all event titles for debugging
         event_titles = [e.get('summary', 'No Title') for e in events]
@@ -821,11 +843,19 @@ When asked about calendar events, meetings, or schedule, use this information to
         
     except HttpError as e:
         logger.error(f"Google Calendar API error in get_calendar_context_summary: {e}")
-        return ""  # Fail silently, don't break chat
+        # Even on error, provide calendar context so AI knows about calendar functionality
+        return """## Calendar Information
+
+You have access to calendar functionality. The calendar connection encountered an error.
+You can still reference calendar functionality, but event data may not be available."""
     except Exception as e:
         logger.error(f"Error in get_calendar_context_summary: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return ""  # Fail silently, don't break chat
+        # Even on error, provide calendar context so AI knows about calendar functionality
+        return """## Calendar Information
+
+You have access to calendar functionality. There was an error accessing the calendar.
+You can still reference calendar functionality, but event data may not be available."""
 
 
 @require_http_methods(["GET"])

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiGet } from '../../services/api';
-import './CalendarPanel.css';
+import { getAuthToken } from '../../services/auth';
 
 function CalendarPanel() {
   const [status, setStatus] = useState(null);
@@ -55,8 +55,9 @@ function CalendarPanel() {
       const headers = {
         'Content-Type': 'application/json',
       };
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`;
+      const token = getAuthToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
       const response = await fetch('/api/v1/calendar/disconnect', {
         method: 'POST',
@@ -101,8 +102,9 @@ function CalendarPanel() {
       const headers = {
         'Content-Type': 'application/json',
       };
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`;
+      const token = getAuthToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
       const response = await fetch('/api/v1/calendar/sync', {
         method: 'POST',
@@ -138,20 +140,20 @@ function CalendarPanel() {
 
   if (loading) {
     return (
-      <div className="panel panel-fill">
-        <div className="calendar-panel">
-          <div className="calendar-loading">Loading calendar status...</div>
+      <div className="panel panel-fill calendar-panel-container">
+        <div className="p-5">
+          <div className="text-center py-10 text-white-opacity-60">Loading calendar status...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="panel panel-fill">
-      <div className="calendar-panel">
-        <div className="calendar-header">
-          <h2>Google Calendar Integration</h2>
-          <button onClick={loadStatus} className="btn-refresh" title="Refresh status">
+    <div className="panel panel-fill calendar-panel-container">
+      <div className="p-5">
+        <div className="flex justify-between items-center mb-5 flex-wrap gap-3">
+          <h2 className="m-0 text-1.3em font-600 bg-gradient-to-br from-white to-red-accent bg-clip-text text-transparent">Google Calendar Integration</h2>
+          <button onClick={loadStatus} className="px-3 py-2 bg-white-opacity-6 border border-white-opacity-12 rounded-lg text-white cursor-pointer text-0.85em transition-all duration-200 hover:bg-white-opacity-10" title="Refresh status">
             ↻
           </button>
         </div>
@@ -229,18 +231,18 @@ function CalendarPanel() {
         )}
 
         {events.length > 0 && (
-          <div className="calendar-events-section">
-            <h3>Upcoming Events ({events.length})</h3>
-            <div className="events-list">
+          <div className="mb-6">
+            <h3 className="mb-4 text-white font-600">Upcoming Events ({events.length})</h3>
+            <div className="flex flex-col gap-3 overflow-y-auto">
               {events.map((event) => (
-                <div key={event.id} className="event-item">
-                  <div className="event-title">{event.title || 'No Title'}</div>
-                  <div className="event-time">{formatEventTime(event.start)}</div>
+                <div key={event.id} className="bg-white-opacity-3 border border-white-opacity-8 border-l-[3px] border-l-red-border-4 rounded-xl px-4 py-3.5 transition-all duration-200 hover:bg-white-opacity-5 hover:translate-x-0.5">
+                  <div className="font-600 text-white mb-1.5">{event.title || 'No Title'}</div>
+                  <div className="text-0.85em text-white-opacity-60">{formatEventTime(event.start)}</div>
                   {event.location && (
-                    <div className="event-location">📍 {event.location}</div>
+                    <div className="text-0.85em text-white-opacity-70 mt-1">📍 {event.location}</div>
                   )}
                   {event.description && (
-                    <div className="event-description">{event.description}</div>
+                    <div className="text-0.85em text-white-opacity-70 mt-1">{event.description}</div>
                   )}
                 </div>
               ))}

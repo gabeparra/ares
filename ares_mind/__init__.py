@@ -4,9 +4,10 @@ ARES Mind - Memory and context management for ARES AI system.
 This module provides:
 - RAG store (semantic search over conversation history using ChromaDB)
 - Memory extraction from conversations using OpenRouter AI
-- Automated hourly memory revision process
+- Manual memory revision process (run via: python3 manage.py revise_memories)
 
-Note: Context building functions for memory injection are in:
+Note: Memory revision is MANUAL only - it makes external API calls to OpenRouter.
+      Context building functions for memory injection are in:
 - api/memory_views.py::get_self_memory_context()
 - api/user_memory_views.py::get_user_memory_context()
 """
@@ -14,7 +15,7 @@ Note: Context building functions for memory injection are in:
 from .rag import RAGStore, rag_store
 from .memory_extraction import (
     extract_memories_from_conversation,
-    revise_memories_hourly,
+    revise_memories,
     apply_memory_spot,
     auto_apply_high_confidence_memories,
 )
@@ -23,7 +24,7 @@ __all__ = [
     "RAGStore",
     "rag_store",
     "extract_memories_from_conversation",
-    "revise_memories_hourly",
+    "revise_memories",
     "apply_memory_spot",
     "auto_apply_high_confidence_memories",
 ]

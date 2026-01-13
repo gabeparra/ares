@@ -141,6 +141,11 @@ class AgentClient:
                 "status": "offline",
                 "error": f"Cannot connect to agent at {self.base_url}",
             }
+        except httpx.TimeoutException:
+            return {
+                "status": "offline",
+                "error": f"Connection to agent at {self.base_url} timed out after {self.timeout}s",
+            }
         except httpx.HTTPStatusError as e:
             return {
                 "status": "error",
@@ -168,6 +173,14 @@ class AgentClient:
             )
             response.raise_for_status()
             return response.json()
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
+            return {
+                "error": f"Cannot connect to agent at {self.base_url}: {type(e).__name__}",
+            }
+        except httpx.HTTPStatusError as e:
+            return {
+                "error": f"Agent returned {e.response.status_code}: {e.response.text}",
+            }
         except Exception as e:
             logger.error(f"Error getting resources: {e}")
             return {"error": str(e)}
@@ -190,6 +203,10 @@ class AgentClient:
         except httpx.ConnectError:
             return {
                 "error": f"Cannot connect to agent at {self.base_url}",
+            }
+        except httpx.TimeoutException:
+            return {
+                "error": f"Connection to agent at {self.base_url} timed out after {self.timeout}s",
             }
         except httpx.HTTPStatusError as e:
             return {
@@ -262,6 +279,12 @@ class AgentClient:
                 "success": False,
                 "action": action_id,
                 "error": f"Cannot connect to agent at {self.base_url}",
+            }
+        except httpx.TimeoutException:
+            return {
+                "success": False,
+                "action": action_id,
+                "error": f"Connection to agent at {self.base_url} timed out after {self.timeout}s",
             }
         except httpx.HTTPStatusError as e:
             return {

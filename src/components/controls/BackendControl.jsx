@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import './BackendControl.css'
 
 function BackendControl({ isConnected, onRefresh }) {
   const [checking, setChecking] = useState(false)

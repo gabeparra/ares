@@ -1,6 +1,9 @@
 """
 Authentication views for Auth0.
 """
+import json
+import jwt
+import time
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -164,7 +167,6 @@ def verify_token_view(request):
         token = get_token_auth_header(request)
         if not token:
             # Try to get from request body
-            import json
             data = json.loads(request.body)
             token = data.get('token')
         
@@ -180,4 +182,69 @@ def verify_token_view(request):
         })
     except Exception as e:
         return JsonResponse({'valid': False, 'error': str(e)}, status=401)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def dev_admin_config(request):
+    """
+    Return dev admin configuration (only in debug mode).
+    """
+    return JsonResponse({
+        'enabled': getattr(settings, 'DEV_ADMIN_ENABLED', False),
+        'debug': settings.DEBUG,
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def dev_admin_login(request):
+    """
+    Dev admin login endpoint - only available when DEV_ADMIN_ENABLED=True.
+    Returns a signed JWT token that can be used for authentication.
+    WARNING: Only enable for development/testing!
+    """
+    if not getattr(settings, 'DEV_ADMIN_ENABLED', False):
+        return JsonResponse({'error': 'Dev admin login is disabled. Set DEV_ADMIN_ENABLED=True to enable.'}, status=403)
+    
+    try:
+        data = json.loads(request.body) if request.body else {}
+        email = data.get('email', '')
+        password = data.get('password', '')
+        
+        # Check credentials
+        if email != settings.DEV_ADMIN_EMAIL or password != settings.DEV_ADMIN_PASSWORD:
+            return JsonResponse({'error': 'Invalid credentials'}, status=401)
+        
+        # Create a dev JWT token
+        now = int(time.time())
+        payload = {
+            'sub': settings.DEV_ADMIN_USER_ID,
+            'email': settings.DEV_ADMIN_EMAIL,
+            'name': 'Dev Admin',
+            'nickname': 'devadmin',
+            'picture': '',
+            'iat': now,
+            'exp': now + 86400 * 7,  # 7 days
+            'iss': 'dev-admin-issuer',
+            'aud': 'dev-admin-audience',
+            'dev_admin': True,  # Special flag to identify dev admin tokens
+        }
+        
+        # Sign with Django's secret key
+        token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+        
+        return JsonResponse({
+            'success': True,
+            'token': token,
+            'user': {
+                'sub': payload['sub'],
+                'email': payload['email'],
+                'name': payload['name'],
+                'nickname': payload['nickname'],
+                'picture': payload['picture'],
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 

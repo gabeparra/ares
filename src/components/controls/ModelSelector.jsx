@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import './ModelSelector.css'
+import { getAuthToken } from '../../services/auth'
 
 function ModelSelector({ currentModel, onModelChange }) {
   const [models, setModels] = useState([])
@@ -31,8 +31,9 @@ function ModelSelector({ currentModel, onModelChange }) {
   const fetchCurrentModel = async () => {
     try {
       const headers = {}
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       const response = await fetch('/api/v1/models', { headers })
       if (response.ok) {
@@ -49,8 +50,9 @@ function ModelSelector({ currentModel, onModelChange }) {
   const fetchModels = async () => {
     try {
       const headers = {}
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       const response = await fetch('/api/v1/models', { headers })
       if (response.ok) {
@@ -72,8 +74,9 @@ function ModelSelector({ currentModel, onModelChange }) {
       const headers = {
         'Content-Type': 'application/json',
       }
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       const response = await fetch('/api/v1/models', {
         method: 'POST',

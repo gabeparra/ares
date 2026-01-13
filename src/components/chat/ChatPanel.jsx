@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { safeJsonParse } from '../../services/api'
-import './ChatPanel.css'
+import { getAuthToken } from '../../services/auth'
 
 // Helper function to generate daily session ID (YYYY-MM-DD format)
 function getDailySessionId() {
@@ -149,8 +149,9 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
     const checkWhisperConfig = async () => {
       try {
         const headers = {}
-        if (window.authToken) {
-          headers['Authorization'] = `Bearer ${window.authToken}`
+        const token = getAuthToken()
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
         }
         const response = await fetch('/api/v1/stt/config', { headers })
         if (response.ok) {
@@ -386,8 +387,9 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
     const loadTtsConfig = async () => {
       try {
         const headers = {}
-        if (window.authToken) {
-          headers['Authorization'] = `Bearer ${window.authToken}`
+        const token = getAuthToken()
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
         }
         
         const [configRes, voicesRes] = await Promise.all([
@@ -525,8 +527,9 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
       if (!audioUrl) {
         // Not in cache, fetch from API with streaming
         const headers = { 'Content-Type': 'application/json' }
-        if (window.authToken) {
-          headers['Authorization'] = `Bearer ${window.authToken}`
+        const token = getAuthToken()
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
         }
         
         // Set a timeout for the entire streaming process
@@ -710,8 +713,9 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
     setTtsConfigSaved(false)
     try {
       const headers = { 'Content-Type': 'application/json' }
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       
       const configToSave = {
@@ -819,8 +823,9 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
       const headers = {
         'Content-Type': 'application/json',
       }
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
 
       const response = await fetch('/api/v1/chat', {
@@ -913,8 +918,9 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
     const loadSessions = async () => {
       try {
         const headers = {}
-        if (window.authToken) {
-          headers['Authorization'] = `Bearer ${window.authToken}`
+        const token = getAuthToken()
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
         }
         const response = await fetch('/api/v1/sessions?limit=200', { headers })
         if (response.ok) {
@@ -933,8 +939,9 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
     const loadModels = async () => {
       try {
         const headers = {}
-        if (window.authToken) {
-          headers['Authorization'] = `Bearer ${window.authToken}`
+        const token = getAuthToken()
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
         }
         const res = await fetch('/api/v1/models', { headers })
         if (res.ok) {
@@ -952,8 +959,9 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
     const loadSessionMeta = async () => {
       try {
         const headers = {}
-        if (window.authToken) {
-          headers['Authorization'] = `Bearer ${window.authToken}`
+        const token = getAuthToken()
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
         }
         const res = await fetch(`/api/v1/sessions/${encodeURIComponent(sessionId)}`, { headers })
         if (res.ok) {
@@ -973,8 +981,9 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
     setSessionModel(model)
     try {
       const headers = { 'Content-Type': 'application/json' }
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       await fetch(`/api/v1/sessions/${encodeURIComponent(sessionId)}`, {
         method: 'PATCH',
@@ -1010,8 +1019,9 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
     const loadHistory = async () => {
       try {
         const headers = {}
-        if (window.authToken) {
-          headers['Authorization'] = `Bearer ${window.authToken}`
+        const token = getAuthToken()
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
         }
         const response = await fetch(`/api/v1/conversations?session_id=${sessionId}&limit=50`, { headers })
         if (response.ok) {
@@ -1140,8 +1150,9 @@ function ChatPanel({ onSendMessage, ws, sessionId: propSessionId, onSessionChang
       // in transcriptions. The prompt parameter can leak into the output, especially with unclear audio.
       
       const headers = {}
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       
       const response = await fetch('/api/v1/stt', {
@@ -1537,8 +1548,9 @@ Please provide an overview of the architecture and suggest improvements.`
       const headers = {
         'Content-Type': 'application/json',
       }
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
 
       const response = await fetch('/api/v1/chat', {
@@ -1590,8 +1602,9 @@ Please provide an overview of the architecture and suggest improvements.`
       const headers = {
         'Content-Type': 'application/json',
       }
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
 
       const response = await fetch('/api/v1/code/index', {
@@ -1628,7 +1641,7 @@ Please provide an overview of the architecture and suggest improvements.`
   }
 
   return (
-    <div className="panel chat-panel">
+    <div className="chat-panel">
       <div className="chat-header">
         <h2>Chat with ARES</h2>
         <div className="session-selector-container">

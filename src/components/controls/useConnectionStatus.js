@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { getAuthToken } from '../../services/auth'
 
 const STORAGE_KEY = 'ares_auto_reconnect'
 
@@ -23,8 +24,9 @@ function useConnectionStatus() {
     
     try {
       const headers = {}
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       
       // Use provider settings endpoint as a lightweight health check

@@ -8,6 +8,69 @@ import subprocess
 import json
 
 
+def tail_file(file_path, n_lines):
+    """
+    Efficiently read the last N lines from a file without loading the entire file into memory.
+    This prevents memory issues and file locking problems when reading large log files.
+    
+    Uses a backward-reading approach: reads from the end of the file in chunks until
+    we have enough lines, avoiding loading the entire file into memory.
+    """
+    try:
+        with open(str(file_path), "rb") as f:
+            # Go to end of file
+            f.seek(0, os.SEEK_END)
+            file_size = f.tell()
+            
+            # If file is empty, return empty list
+            if file_size == 0:
+                return []
+            
+            # Read backwards in chunks
+            chunk_size = 8192  # 8KB chunks
+            chunks = []
+            position = file_size
+            newline_count = 0
+            
+            # Read backwards until we have enough lines or reach the beginning
+            while position > 0 and newline_count < n_lines + 1:  # +1 to account for partial first line
+                # Calculate how much to read
+                read_size = min(chunk_size, position)
+                position -= read_size
+                f.seek(position, os.SEEK_SET)
+                
+                # Read the chunk
+                chunk = f.read(read_size)
+                chunks.insert(0, chunk)  # Prepend to maintain order
+                
+                # Count newlines in this chunk
+                newline_count += chunk.count(b'\n')
+            
+            # Combine all chunks and decode
+            content = b''.join(chunks)
+            text = content.decode('utf-8', errors='replace')
+            
+            # Split into lines and return the last N
+            all_lines = text.splitlines()
+            return all_lines[-n_lines:] if len(all_lines) > n_lines else all_lines
+            
+    except Exception as e:
+        # Fallback: if efficient method fails, try reading last portion of file (max 10MB)
+        # This is still better than reading the entire file
+        try:
+            with open(str(file_path), "r", encoding="utf-8", errors="replace") as f:
+                f.seek(0, os.SEEK_END)
+                file_size = f.tell()
+                max_read = min(10 * 1024 * 1024, file_size)  # 10MB max
+                f.seek(max(0, file_size - max_read), os.SEEK_SET)
+                # Skip the first line as it might be incomplete
+                f.readline()
+                data = f.read().splitlines()
+                return data[-n_lines:] if len(data) > n_lines else data
+        except Exception:
+            raise e
+
+
 @require_http_methods(["GET"])
 @require_auth
 def logs_tail(request):
@@ -35,9 +98,8 @@ def logs_tail(request):
         if not log_path:
             log_path = os.path.join(str(settings.BASE_DIR), "logs", "backend.log")
         try:
-            with open(str(log_path), "r", encoding="utf-8", errors="replace") as f:
-                data = f.read().splitlines()
-            tail = data[-lines:]
+            # Use efficient tail function that doesn't load entire file into memory
+            tail = tail_file(log_path, lines)
             return make_response({"source": "backend", "lines": tail})
         except FileNotFoundError:
             return JsonResponse(

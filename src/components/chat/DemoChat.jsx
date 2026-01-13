@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from "react";
-import "./ChatPanel.css";
 
 function DemoChat() {
   const [messages, setMessages] = useState([]);
@@ -45,49 +44,53 @@ function DemoChat() {
   };
 
   return (
-    <div className="panel chat-panel">
-      <div className="chat-header">
-        <h2>Demo Chat</h2>
-        <div className="demo-badge">Demo Mode</div>
+    <div className="flex flex-col flex-1 min-h-0 h-full w-full overflow-hidden box-border p-16px pb-0 gap-0 bg-transparent">
+      <div className="flex justify-between items-center mb-12px pb-12px border-b border-white/10 bg-gradient-to-r from-transparent via-red/4 to-transparent px-4px -mx-4px rounded-md flex-shrink-0 flex-wrap gap-8px">
+        <h2 className="m-0 flex-1 text-white/95 text-1.15em font-semibold tracking-wide">Demo Chat</h2>
+        <div className="px-12px py-4px bg-yellow-500/20 border border-yellow-500/40 rounded-md text-yellow-300 text-0.85em font-semibold">Demo Mode</div>
       </div>
 
-      <div className="chat-messages">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-10px pr-4px m-0 box-border">
         {messages.length === 0 ? (
           <div className="empty-state">
             Try the chat interface. Sign in to connect to ARES.
           </div>
         ) : (
           messages.map((msg, idx) => (
-            <div key={idx} className={`chat-message ${msg.type}`}>
-              <div className="message-header">
-                <span className="message-sender">
+            <div key={idx} className={`mb-12px px-16px py-12px rounded-xl ${
+              msg.type === 'user' 
+                ? 'bg-red/15 border border-red/30 text-white' 
+                : 'bg-white/6 border border-white/10 text-white/95'
+            }`}>
+              <div className="flex justify-between items-baseline mb-6px">
+                <span className="text-0.85em font-semibold text-white/90">
                   {msg.type === "user" ? "You" : "ARES (Demo)"}
                 </span>
-                <span className="message-time">
+                <span className="text-0.75em text-white/40 font-mono">
                   {formatTime(msg.timestamp)}
                 </span>
               </div>
-              <div className="message-content">{msg.content}</div>
+              <div className="leading-normal whitespace-pre-wrap break-words text-white/90 text-1em">{msg.content}</div>
             </div>
           ))
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="chat-input-form">
-        <div className="chat-input-container">
+      <form onSubmit={handleSubmit} className="flex gap-10px items-end pt-12px pb-16px flex-shrink-0">
+        <div className="flex-1 min-w-0">
           <input
             ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type a message to try the interface..."
-            className="chat-input"
+            className="w-full px-16px py-12px bg-white/6 border border-white/12 rounded-xl text-white placeholder-white/40 text-1em resize-none leading-normal outline-none transition-all duration-200ms focus:border-red/50 focus:bg-white/8"
           />
         </div>
         <button
           type="submit"
-          className="chat-send-button"
+          className="px-24px py-12px bg-gradient-to-br from-red/60 to-red/80 text-white font-semibold rounded-xl cursor-pointer transition-all duration-200ms border-none outline-none hover:from-red/70 hover:to-red/90 hover:shadow-[0_4px_16px_rgba(255,0,0,0.3)] disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={!input.trim()}
         >
           Send

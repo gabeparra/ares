@@ -34,6 +34,7 @@ venv.bak/
 
 # IDEs
 .vscode/
+.cursor/
 .idea/
 *.swp
 *.swo
@@ -70,6 +71,7 @@ test-results/
 *.sqlite
 *.sqlite3
 data/*.sqlite3
+data/chromadb/
 
 # Logs
 *.log
@@ -108,6 +110,8 @@ ssl/
 *.sublime-project
 *.sublime-workspace
 .local/
+.pids/
+.python-version
 
 # Frontend artifacts
 web/build/

@@ -17,12 +17,37 @@ class Auth0Error(Exception):
     pass
 
 
-# Admin role ID from Auth0
-ADMIN_ROLE_ID = 'rol_BysmqyxaOLmdalmX'
+def get_admin_role_id():
+    """Get the admin role ID from Django settings.
+    
+    Returns the AUTH0_ADMIN_ROLE_ID from settings, which should be configured
+    via the AUTH0_ADMIN_ROLE_ID environment variable.
+    
+    The role ID can be found in Auth0 Dashboard > User Management > Roles > [Your Admin Role]
+    """
+    return settings.AUTH0_ADMIN_ROLE_ID
 
 # Cache for Management API token
 _management_api_token = None
 _management_api_token_expiry = 0
+
+# Cache for user role checks (user_id -> (has_admin, debug_info, expiry_time))
+# This prevents hitting Auth0 rate limits by caching role results for 5 minutes
+_user_role_cache = {}
+_USER_ROLE_CACHE_TTL = 300  # 5 minutes
+
+
+def clear_role_cache(user_id=None):
+    """Clear the role cache for a specific user or all users.
+    
+    Args:
+        user_id: If provided, only clear cache for this user. If None, clear all.
+    """
+    global _user_role_cache
+    if user_id:
+        _user_role_cache.pop(user_id, None)
+    else:
+        _user_role_cache = {}
 
 
 def get_management_api_token():
@@ -177,28 +202,69 @@ def check_user_has_role(user_id, role_id):
 def has_admin_role(payload, return_debug=False):
     """Check if the user has the admin role using Auth0 Management API
     If return_debug=True, returns (has_role, debug_info) tuple
+    
+    Uses caching to avoid hitting Auth0 rate limits. Results are cached for 5 minutes.
     """
+    global _user_role_cache
+    
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Check for dev admin token first
+    if payload.get('dev_admin') == True:
+        logger.info('Dev admin token detected - granting admin access')
+        debug_info = {
+            'user_id': payload.get('sub'),
+            'dev_admin': True,
+            'has_admin': True,
+            'match_details': {'matched_by': 'dev_admin_token'}
+        }
+        if return_debug:
+            return True, debug_info
+        return True
+    
     user_id = payload.get('sub')
     if not user_id:
         if return_debug:
             return False, {'error': 'No user_id in token payload', 'payload_keys': list(payload.keys())}
         return False
     
+    # Check cache first
+    if user_id in _user_role_cache:
+        cached_result, cached_debug, cache_expiry = _user_role_cache[user_id]
+        if time.time() < cache_expiry:
+            logger.debug(f'Using cached role result for user {user_id}: has_admin={cached_result}')
+            if return_debug:
+                cached_debug['from_cache'] = True
+                return cached_result, cached_debug
+            return cached_result
+        else:
+            # Cache expired, remove it
+            del _user_role_cache[user_id]
+    
     try:
-        has_role, roles, debug_info = check_user_has_role(user_id, ADMIN_ROLE_ID)
+        admin_role_id = get_admin_role_id()
+        if not admin_role_id:
+            if return_debug:
+                return False, {'error': 'AUTH0_ADMIN_ROLE_ID not configured in settings', 'user_id': user_id}
+            return False
+        has_role, roles, debug_info = check_user_has_role(user_id, admin_role_id)
+        
+        # Cache the result
+        cache_expiry = time.time() + _USER_ROLE_CACHE_TTL
+        _user_role_cache[user_id] = (has_role, debug_info, cache_expiry)
+        logger.debug(f'Cached role result for user {user_id}: has_admin={has_role}')
+        
         if return_debug:
+            debug_info['from_cache'] = False
             return has_role, debug_info
         return has_role
     except Auth0Error as e:
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f'Failed to check admin role for user {user_id}: {str(e)}')
         if return_debug:
             return False, {'error': str(e), 'user_id': user_id}
         return False
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f'Unexpected error checking admin role for user {user_id}: {str(e)}')
         if return_debug:
             return False, {'error': str(e), 'user_id': user_id}
@@ -242,10 +308,31 @@ def get_token_auth_header(request):
     return token
 
 
+def verify_dev_admin_token(token):
+    """Verify a dev admin token (only works when DEV_ADMIN_ENABLED=True)"""
+    if not getattr(settings, 'DEV_ADMIN_ENABLED', False):
+        return None
+    
+    try:
+        # Try to decode as a dev admin token (signed with Django secret key)
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'], options={'verify_aud': False})
+        if payload.get('dev_admin') == True:
+            return payload
+    except:
+        pass
+    return None
+
+
 def verify_token(token):
     """Verify Auth0 JWT token (access token or ID token)"""
     import logging
     logger = logging.getLogger(__name__)
+    
+    # First check if this is a dev admin token
+    dev_payload = verify_dev_admin_token(token)
+    if dev_payload:
+        logger.info(f'Dev admin token verified for: {dev_payload.get("email")}')
+        return dev_payload
     
     if not settings.AUTH0_DOMAIN:
         raise Auth0Error('AUTH0_DOMAIN not configured')

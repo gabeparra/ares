@@ -1,5 +1,4 @@
 import React from 'react'
-import './SummaryPanel.css'
 
 function SummaryPanel({ summary }) {
   return (

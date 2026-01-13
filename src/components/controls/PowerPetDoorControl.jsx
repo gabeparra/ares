@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import './PowerPetDoorControl.css'
 
 function PowerPetDoorControl() {
   const [enabled, setEnabled] = useState(false)

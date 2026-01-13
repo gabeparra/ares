@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import './ConversationHistory.css'
 
 function ConversationHistory({ onSelectSession, currentSessionId }) {
   const [sessions, setSessions] = useState([])

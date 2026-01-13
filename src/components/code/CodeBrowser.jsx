@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import './CodeBrowser.css'
+import { getAuthToken } from '../../services/auth'
 
 function CodeBrowser() {
   const [files, setFiles] = useState([])
@@ -13,6 +13,7 @@ function CodeBrowser() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  const [textWrap, setTextWrap] = useState(false)
   const [sessionId, setSessionId] = useState(() => {
     // Use a dedicated session for code browser
     const today = new Date()
@@ -36,8 +37,9 @@ function CodeBrowser() {
     setLoading(true)
     try {
       const headers = {}
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       const response = await fetch('/api/v1/code/files', { headers })
       if (response.ok) {
@@ -58,8 +60,9 @@ function CodeBrowser() {
     setSelectedFile(filePath)
     try {
       const headers = {}
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       const response = await fetch(
         `/api/v1/code/file?file_path=${encodeURIComponent(filePath)}`,
@@ -110,8 +113,9 @@ function CodeBrowser() {
       const headers = {
         'Content-Type': 'application/json',
       }
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
 
       const response = await fetch('/api/v1/chat', {
@@ -168,43 +172,43 @@ function CodeBrowser() {
   }
 
   return (
-    <div className="code-browser-panel panel">
-      <div className="code-browser-header">
-        <h2>Code Browser</h2>
-        <button onClick={loadFiles} className="refresh-button" title="Refresh file list">
-          🔄
-        </button>
+    <div className="panel flex flex-col h-full min-h-0 overflow-hidden p-2 px-3 box-border relative">
+      <div className="flex justify-between items-center mb-2 flex-wrap gap-2 flex-shrink-0 p-0">
+        <h2 className="m-0 text-1em font-600 bg-gradient-to-br from-white to-red-accent bg-clip-text text-transparent">Code Browser</h2>
       </div>
 
-      <div className="code-browser-content">
+      <div className="flex flex-1 min-h-0 gap-3 overflow-hidden mt-0 w-full box-border items-stretch">
         {/* File Browser Sidebar */}
-        <div className="code-browser-sidebar">
-          <div className="code-search-box">
+        <div className="flex-[0_1_280px] min-w-[220px] max-w-[350px] flex flex-col min-h-0 overflow-hidden bg-black bg-opacity-20 rounded-xl p-3 box-border relative">
+          <div className="mb-3 flex-shrink-0 w-full box-border min-w-0">
             <input
               type="text"
               placeholder="Search files..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
+              className="w-full max-w-full px-3 py-2.5 bg-white-opacity-10 border border-white-opacity-20 rounded-lg text-white text-0.9em box-border min-w-0 placeholder-white-opacity-50"
             />
           </div>
 
-          <div className="file-list">
-            {loading && !fileContent && <div className="loading">Loading files...</div>}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full box-border min-w-0">
+            {loading && !fileContent && <div className="flex items-center justify-center py-5 text-white-opacity-70 text-0.9em">Loading files...</div>}
             {Object.keys(groupedFiles).map(dir => (
-              <div key={dir} className="file-group">
+              <div key={dir} className="mb-3">
                 {dir !== '/' && (
-                  <div className="file-group-header">
+                  <div className="px-2.5 py-2.5 font-600 text-0.8em text-white-opacity-70 mb-1.5">
                     📁 {dir}
                   </div>
                 )}
                 {groupedFiles[dir].map((file) => (
                   <div
                     key={file.path}
-                    className={`file-item ${selectedFile === file.path ? 'selected' : ''}`}
+                    className={`flex items-center gap-1.5 px-2.5 py-2.5 cursor-pointer transition-all duration-200 rounded text-0.85em w-full box-border min-w-0 max-w-full hover:bg-white-opacity-6 ${
+                      selectedFile === file.path ? 'bg-red-bg-4 text-white' : ''
+                    }`}
                     onClick={() => handleFileSelect(file.path)}
                     title={file.path}
                   >
-                    <span className="file-icon">
+                    <span className="text-1em flex-shrink-0">
                       {file.extension === '.py' ? '🐍' :
                        file.extension === '.js' || file.extension === '.jsx' ? '📜' :
                        file.extension === '.ts' || file.extension === '.tsx' ? '📘' :
@@ -215,7 +219,7 @@ function CodeBrowser() {
                        file.extension === '.yaml' || file.extension === '.yml' ? '⚙️' :
                        '📄'}
                     </span>
-                    <span className="file-name">{file.name}</span>
+                    <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{file.name}</span>
                   </div>
                 ))}
               </div>
@@ -224,69 +228,104 @@ function CodeBrowser() {
         </div>
 
         {/* Code Viewer */}
-        <div className="code-viewer">
+        <div className="flex-[2] min-w-0 flex flex-col min-h-0 overflow-hidden bg-black bg-opacity-30 rounded-lg p-3 box-border relative">
           {loading && fileContent === null && (
-            <div className="loading">Loading file...</div>
+            <div className="flex items-center justify-center py-5 text-white-opacity-70 text-0.9em">Loading file...</div>
           )}
           
           {fileContent && (
-            <div className="file-content">
-              <div className="file-header">
-                <span className="file-path">{fileContent.file_path}</span>
-                <button
-                  onClick={() => sendFileToChat(fileContent.file_path, fileContent)}
-                  className="send-to-chat-button"
-                  title="Send file to chat for review"
-                >
-                  💬 Review in Chat
-                </button>
+            <div className="flex flex-col h-full min-h-0 w-full box-border overflow-hidden relative flex-1">
+              <div className="flex justify-between items-center mb-3 flex-shrink-0 gap-2">
+                <span className="font-mono text-0.8em text-white-opacity-80 overflow-hidden text-ellipsis whitespace-nowrap flex-1 min-w-0">{fileContent.file_path}</span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => setTextWrap(!textWrap)}
+                    className={`px-3 py-1.5 bg-white-opacity-10 border border-white-opacity-20 rounded text-white cursor-pointer text-0.8em transition-all duration-200 flex-shrink-0 whitespace-nowrap hover:bg-white-opacity-15 hover:border-white-opacity-30 ${
+                      textWrap ? 'bg-white-opacity-20 border-white-opacity-40' : ''
+                    }`}
+                    title={textWrap ? 'Disable text wrap' : 'Enable text wrap'}
+                  >
+                    {textWrap ? '🔤 Wrap' : '📄 No Wrap'}
+                  </button>
+                  <button
+                    onClick={() => sendFileToChat(fileContent.file_path, fileContent)}
+                    className="px-3 py-1.5 bg-white-opacity-10 border border-white-opacity-20 rounded text-white cursor-pointer text-0.8em transition-all duration-200 flex-shrink-0 whitespace-nowrap hover:bg-white-opacity-15 hover:border-white-opacity-30"
+                    title="Send file to chat for review"
+                  >
+                    💬 Review in Chat
+                  </button>
+                </div>
               </div>
-              <div className="code-block-container">
-                <SyntaxHighlighter
-                  style={oneDark}
-                  language={fileContent.language || 'text'}
-                  PreTag="div"
-                  customStyle={{
-                    margin: 0,
-                    borderRadius: 0,
-                    fontSize: '0.9em',
-                    padding: '15px',
-                  }}
-                >
-                  {fileContent.content}
-                </SyntaxHighlighter>
+              <div className={`flex-1 overflow-x-auto overflow-y-auto min-h-0 m-0 w-full box-border relative ${textWrap ? 'overflow-x-hidden pr-4' : ''}`} style={{ background: 'rgb(40, 44, 52)' }}>
+                <div className="flex w-full relative" style={{ background: 'rgb(40, 44, 52)', minHeight: '100%' }}>
+                  <div className="flex-shrink-0 py-3 px-2 pl-3 bg-black bg-opacity-30 border-r border-white-opacity-10 select-none font-mono text-0.85em text-white-opacity-40 text-right leading-[1.5] min-w-[50px] box-border">
+                    {fileContent.content.split('\n').map((_, index) => (
+                      <div key={index} className="p-0 m-0 min-h-[1.5em] block whitespace-nowrap">
+                        {index + 1}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex-1 min-w-0 overflow-visible" style={{ background: 'rgb(40, 44, 52)' }}>
+                    <SyntaxHighlighter
+                      style={oneDark}
+                      language={fileContent.language || 'text'}
+                      PreTag="div"
+                      customStyle={{
+                        margin: 0,
+                        borderRadius: 0,
+                        fontSize: '0.85em',
+                        padding: '12px',
+                        overflow: 'visible',
+                        whiteSpace: textWrap ? 'pre-wrap' : 'pre',
+                        wordWrap: textWrap ? 'break-word' : 'normal',
+                        wordBreak: textWrap ? 'break-word' : 'normal',
+                        overflowWrap: textWrap ? 'break-word' : 'normal',
+                        lineHeight: '1.5',
+                      }}
+                    >
+                      {fileContent.content}
+                    </SyntaxHighlighter>
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
           {!fileContent && !loading && (
-            <div className="empty-state">
+            <div className="flex items-center justify-center flex-1 min-h-[200px] text-white-opacity-75 text-0.95em text-center py-6 px-6 rounded-2xl bg-white-opacity-5 border border-white-opacity-15 shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] w-full max-w-full box-border overflow-hidden break-words overflow-wrap-break-word m-0">
               Select a file to view its contents
             </div>
           )}
         </div>
 
         {/* Chat Panel */}
-        <div className="code-chat-panel">
-          <div className="chat-header">
-            <h3>Ask about Code</h3>
+        <div className="flex-[0_1_360px] min-w-[280px] max-w-[450px] flex flex-col min-h-0 h-full overflow-hidden bg-black bg-opacity-30 border border-white-opacity-10 rounded-lg p-3 self-stretch box-border relative shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+          <div className="flex justify-between items-center mb-3 flex-shrink-0 gap-2 px-3 py-2 rounded-lg bg-white-opacity-5">
+            <h3 className="m-0 text-1em font-600 text-white flex-1">Ask about Code</h3>
+            <button onClick={loadFiles} className="bg-white-opacity-10 border border-white-opacity-20 rounded-xl px-3 py-2 cursor-pointer text-white text-0.9em transition-all duration-200 flex-shrink-0 hover:bg-white-opacity-15 hover:border-white-opacity-30" title="Refresh file list">
+              🔄
+            </button>
           </div>
           
-          <div className="chat-messages">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 mb-2 px-3 py-3 rounded-xl bg-black bg-opacity-25 border border-white-opacity-8 w-full box-border min-w-0 flex flex-col">
             {messages.length === 0 ? (
-              <div className="empty-state">
+              <div className="flex items-center justify-center flex-1 min-h-[200px] text-white-opacity-75 text-0.95em text-center py-6 px-6 rounded-2xl bg-white-opacity-5 border border-white-opacity-15 shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] w-full max-w-full box-border overflow-hidden break-words overflow-wrap-break-word m-0">
                 Select a file and ask questions about it...
               </div>
             ) : (
               messages.map((msg, idx) => (
-                <div key={idx} className={`chat-message ${msg.type}`}>
-                  <div className="message-header">
-                    <span className="message-sender">
+                <div key={idx} className={`mb-3 px-2.5 py-2.5 rounded ${
+                  msg.type === 'user' ? 'bg-white-opacity-10' : 
+                  msg.type === 'error' ? 'bg-red-bg-3' : 
+                  'bg-[rgba(0,255,0,0.05)]'
+                }`}>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-600 text-0.85em text-white-opacity-90">
                       {msg.type === 'user' ? 'You' : msg.type === 'error' ? 'Error' : 'ARES'}
                     </span>
-                    <span className="message-time">{formatTime(msg.timestamp)}</span>
+                    <span className="text-0.75em text-white-opacity-50">{formatTime(msg.timestamp)}</span>
                   </div>
-                  <div className="message-content">
+                  <div className="text-white-opacity-90 text-0.85em leading-[1.4]">
                     {msg.type === 'assistant' ? (
                       <ReactMarkdown
                         components={{
@@ -308,7 +347,7 @@ function CodeBrowser() {
                                 {codeString}
                               </SyntaxHighlighter>
                             ) : (
-                              <code className="inline-code" {...props}>
+                              <code className="bg-black bg-opacity-30 px-1.5 py-0.5 rounded font-mono text-0.9em" {...props}>
                                 {children}
                               </code>
                             )
@@ -328,14 +367,14 @@ function CodeBrowser() {
             )}
             
             {isTyping && (
-              <div className="chat-message assistant typing">
-                <div className="message-header">
-                  <span className="message-sender">ARES</span>
+              <div className="mb-3 px-2.5 py-2.5 rounded bg-[rgba(0,255,0,0.05)]">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-600 text-0.85em text-white-opacity-90">ARES</span>
                 </div>
-                <div className="typing-indicator">
-                  <span></span>
-                  <span></span>
-                  <span></span>
+                <div className="flex gap-1 py-2">
+                  <span className="w-2 h-2 rounded-full bg-white-opacity-50 animate-typing"></span>
+                  <span className="w-2 h-2 rounded-full bg-white-opacity-50 animate-typing" style={{ animationDelay: '0.2s' }}></span>
+                  <span className="w-2 h-2 rounded-full bg-white-opacity-50 animate-typing" style={{ animationDelay: '0.4s' }}></span>
                 </div>
               </div>
             )}
@@ -343,20 +382,20 @@ function CodeBrowser() {
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={handleSubmit} className="chat-input-form">
-            <div className="chat-input-container">
+          <form onSubmit={handleSubmit} className="flex-shrink-0 p-0 m-0 w-full box-border min-w-0">
+            <div className="flex gap-2 w-full box-border min-w-0">
               <input
                 ref={inputRef}
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask about the code..."
-                className="chat-input"
+                className="flex-1 min-w-0 max-w-full px-3 py-2.5 bg-white-opacity-10 border border-white-opacity-20 rounded-xl text-white text-0.85em box-border placeholder-white-opacity-50"
                 disabled={isTyping}
               />
               <button
                 type="submit"
-                className="chat-send-button"
+                className="px-5 py-2.5 bg-white-opacity-10 border border-white-opacity-20 rounded-xl text-white cursor-pointer text-0.85em transition-all duration-200 flex-shrink-0 hover:bg-white-opacity-15 hover:border-white-opacity-30 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!input.trim() || isTyping}
               >
                 Send

@@ -19,6 +19,9 @@ from . import rag_views
 from . import agent_views
 from . import code_views
 from . import calendar_views
+from . import user_manager_views
+from . import debug_views
+from . import user_account_linking_views
 
 app_name = 'api'
 
@@ -28,6 +31,10 @@ urlpatterns = [
     path('auth/user', auth_views.user_info, name='user_info'),
     path('auth/verify', auth_views.verify_token_view, name='verify_token'),
     path('auth/check-admin', auth_views.check_admin_role, name='check_admin_role'),
+    
+    # Dev admin endpoints (only work in DEBUG mode)
+    path('auth/dev-admin/config', auth_views.dev_admin_config, name='dev_admin_config'),
+    path('auth/dev-admin/login', auth_views.dev_admin_login, name='dev_admin_login'),
     
     # Account linking endpoints
     path('auth/check-duplicates', account_linking_views.check_duplicate_accounts, name='check_duplicates'),
@@ -104,6 +111,7 @@ urlpatterns = [
     path('memory/spots/<int:spot_id>/reject', memory_extraction_views.memory_spot_reject, name='memory_spot_reject'),
     path('memory/auto-apply', memory_extraction_views.auto_apply_memories, name='auto_apply_memories'),
     path('memory/extraction-stats', memory_extraction_views.memory_extraction_stats, name='memory_extraction_stats'),
+    path('memory/revise', memory_extraction_views.revise_memories_endpoint, name='revise_memories'),
     path('capabilities', memory_extraction_views.capabilities_list, name='capabilities_list'),
     
     # Ollama Management API endpoints
@@ -158,6 +166,33 @@ urlpatterns = [
     path('calendar/events', calendar_views.calendar_events, name='calendar_events'),
     path('calendar/sync', calendar_views.calendar_sync, name='calendar_sync'),
     path('calendar/context-debug', calendar_views.calendar_context_debug, name='calendar_context_debug'),
+    
+    # User management endpoints (admin)
+    path('users', user_manager_views.list_users, name='list_users'),
+    path('users/telegram', user_manager_views.list_telegram_users, name='list_telegram_users'),
+    path('users/telegram/link', user_manager_views.link_telegram_account, name='link_telegram_account'),
+    path('users/telegram/unlink', user_manager_views.unlink_telegram_account, name='unlink_telegram_account'),
+    path('users/telegram/nickname', user_manager_views.set_telegram_nickname, name='set_telegram_nickname'),
+    path('users/telegram/nicknames', user_manager_views.get_telegram_nicknames, name='get_telegram_nicknames'),
+    path('users/telegram/nickname/<str:nickname>', user_manager_views.delete_telegram_nickname, name='delete_telegram_nickname'),
+    path('users/<path:user_id>', user_manager_views.get_user_details, name='get_user_details'),
+    
+    # User account linking endpoints (link local accounts to Auth0)
+    path('account-links', user_account_linking_views.list_all_links, name='list_all_account_links'),
+    path('account-links/my', user_account_linking_views.my_account_links, name='my_account_links'),
+    path('account-links/create', user_account_linking_views.create_account_link, name='create_account_link'),
+    path('account-links/delete', user_account_linking_views.delete_account_link, name='delete_account_link'),
+    path('account-links/verify', user_account_linking_views.verify_account_link, name='verify_account_link'),
+    path('account-links/linked', user_account_linking_views.get_linked_accounts, name='get_linked_accounts'),
+    path('account-links/stats', user_account_linking_views.get_link_data_stats, name='get_link_data_stats'),
+    path('account-links/<int:link_id>', user_account_linking_views.get_link_by_id, name='get_link_by_id'),
+    
+    # Debug endpoints for orchestrator and memory system
+    path('debug/prompt', debug_views.debug_prompt, name='debug_prompt'),
+    path('debug/memory', debug_views.debug_memory, name='debug_memory'),
+    path('debug/routing', debug_views.debug_routing, name='debug_routing'),
+    path('debug/status', debug_views.debug_orchestrator_status, name='debug_orchestrator_status'),
+    path('debug/test-consistency', debug_views.debug_test_consistency, name='debug_test_consistency'),
 ]
 
 # Conditionally add SD integration routes

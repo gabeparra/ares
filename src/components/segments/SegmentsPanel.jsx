@@ -1,5 +1,4 @@
 import React from 'react'
-import './SegmentsPanel.css'
 
 function SegmentsPanel({ segments }) {
   const formatTime = (timestamp) => {

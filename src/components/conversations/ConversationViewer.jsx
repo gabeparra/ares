@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import '../../styles/ConversationViewer.css'
+import { getAuthToken } from '../../services/auth'
 
 function ConversationViewer({ sessionId, onClose, onContinueConversation }) {
   const [conversations, setConversations] = useState([])
@@ -15,8 +15,9 @@ function ConversationViewer({ sessionId, onClose, onContinueConversation }) {
     setLoading(true)
     try {
       const headers = {}
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       const response = await fetch(`/api/v1/conversations?session_id=${sessionId}&limit=100`, { headers })
       if (response.ok) {

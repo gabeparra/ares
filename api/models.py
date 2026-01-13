@@ -571,3 +571,39 @@ class ScheduledTask(models.Model):
         return f"{self.task_type} for {self.user_id} at {self.scheduled_time}"
 
 
+class UserAccountLink(models.Model):
+    """
+    Links between local user accounts and Auth0 accounts.
+    
+    Allows users to connect their local ARES accounts (e.g., from Telegram,
+    manually created, or other sources) with their Auth0 account for unified
+    access and data merging.
+    
+    When accounts are linked:
+    - Data from both accounts is merged in queries
+    - The Auth0 user_id becomes the primary identifier
+    - Local user_id data remains accessible through the link
+    """
+    
+    local_user_id = models.CharField(max_length=128)  # The local user_id (e.g., "telegram_user_123")
+    auth0_user_id = models.CharField(max_length=255)  # The Auth0 user_id (format: "provider|id")
+    linked_by = models.CharField(max_length=255)  # Auth0 user_id who created the link
+    verified = models.BooleanField(default=False)  # Whether the link has been verified
+    notes = models.TextField(blank=True)  # Optional notes about the link
+    created_at = models.DateTimeField(auto_now_add=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        unique_together = ["local_user_id", "auth0_user_id"]
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["local_user_id"]),
+            models.Index(fields=["auth0_user_id"]),
+            models.Index(fields=["verified"]),
+        ]
+    
+    def __str__(self) -> str:
+        status = "verified" if self.verified else "pending"
+        return f"Link: {self.local_user_id} -> {self.auth0_user_id} ({status})"
+
+

@@ -200,7 +200,7 @@ All documentation is organized in the [`internaldocuments/`](internaldocuments/)
 
 ### Quick Start
 * **[Setup Guide](internaldocuments/SETUP.md)** - Installation and setup
-* **[Docker Guide](internaldocuments/DOCKER.md)** - Container deployment
+* **[Docker Guide](internaldocuments/docker/DOCKER.md)** - Container deployment (reference)
 * **[Documentation Index](internaldocuments/INDEX.md)** - Complete documentation guide
 
 ### Security & Deployment

@@ -1,12 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import UnoCSS from 'unocss/vite'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    UnoCSS(),
+  ],
   server: {
     port: 3000,
     host: true, // Permite acceso desde fuera del contenedor
     strictPort: true,
+    allowedHosts: ['aresai.space', 'www.aresai.space', 'localhost'],
     watch: {
       usePolling: true, // Necesario para hot-reload en Docker
     },
@@ -19,7 +24,7 @@ export default defineConfig({
       : true,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://backend:8000',
+        target: process.env.VITE_API_URL || 'http://localhost:8000',
         changeOrigin: true,
         configure: (proxy, _options) => {
           proxy.on('error', (err, _req, _res) => {
@@ -30,7 +35,7 @@ export default defineConfig({
         },
       },
       '/ws': {
-        target: process.env.VITE_WS_URL || 'ws://backend:8000',
+        target: process.env.VITE_WS_URL || 'ws://localhost:8000',
         ws: true,
         configure: (proxy, _options) => {
           proxy.on('error', (err, _req, _res) => {
@@ -41,7 +46,7 @@ export default defineConfig({
         },
       },
       '/admin': {
-        target: process.env.VITE_API_URL || 'http://backend:8000',
+        target: process.env.VITE_API_URL || 'http://localhost:8000',
         changeOrigin: true,
       },
       '/sdapi': {

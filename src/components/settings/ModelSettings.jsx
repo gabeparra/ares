@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import './ModelSettings.css'
+import { getAuthToken } from '../../services/auth'
+import { apiGet, apiPost } from '../../services/api'
 
 function ModelSettings({ currentModel, onModelChange, currentProvider: propProvider }) {
   const [availableModels, setAvailableModels] = useState([])
@@ -32,6 +33,12 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
     sdapi: true,
   })
   const [tabVisibilityLoading, setTabVisibilityLoading] = useState(false)
+  const [accountLinks, setAccountLinks] = useState([])
+  const [accountLinksLoading, setAccountLinksLoading] = useState(false)
+  const [showLinkModal, setShowLinkModal] = useState(false)
+  const [newLocalUserId, setNewLocalUserId] = useState('')
+  const [newLinkNotes, setNewLinkNotes] = useState('')
+  const [linkError, setLinkError] = useState(null)
 
   useEffect(() => {
     if (propProvider) {
@@ -43,6 +50,7 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
     loadModelConfig()
     loadAgentConfig()
     loadTabVisibility()
+    loadAccountLinks()
   }, [])
 
   useEffect(() => {
@@ -63,8 +71,9 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
   const loadProvider = async () => {
     try {
       const headers = {}
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       const response = await fetch('/api/v1/settings/provider', { headers })
       if (response.ok) {
@@ -81,8 +90,9 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
     setModelError(null)
     try {
       const headers = {}
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       
       if (currentProvider === 'openrouter') {
@@ -96,10 +106,12 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
           const modelsData = await modelsRes.json()
           const currentData = await currentRes.json()
           const models = modelsData.models || []
+          // Store models with provider information for grouping
           setAvailableModels(models.map(m => ({
             name: m.id,
             full_name: m.name,
-            description: m.description
+            description: m.description,
+            provider: m.provider || 'Unknown'
           })))
           setActiveModel(currentData.model || '')
           setSelectedModel(currentData.model || '')
@@ -158,8 +170,9 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
       const headers = {
         'Content-Type': 'application/json',
       }
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       
       let response
@@ -213,8 +226,9 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
   const loadModelConfig = async () => {
     try {
       const headers = {}
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       const response = await fetch('/api/v1/settings/model-config', { headers })
       if (response.ok) {
@@ -268,8 +282,9 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
       const headers = {
         'Content-Type': 'application/json',
       }
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       const response = await fetch('/api/v1/settings/model-config', {
         method: 'POST',
@@ -317,8 +332,9 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
   const loadAgentConfig = async () => {
     try {
       const headers = {}
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       const response = await fetch('/api/v1/settings/agent', { headers })
       if (response.ok) {
@@ -338,8 +354,9 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
   const loadTabVisibility = async () => {
     try {
       const headers = {}
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       const response = await fetch('/api/v1/settings/tab-visibility', { headers })
       if (response.ok) {
@@ -359,8 +376,9 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
       const headers = {
         'Content-Type': 'application/json',
       }
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       const response = await fetch('/api/v1/settings/tab-visibility', {
         method: 'POST',
@@ -381,14 +399,104 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
     }
   }
 
+  const loadAccountLinks = async () => {
+    setAccountLinksLoading(true)
+    setLinkError(null)
+    try {
+      const response = await apiGet('/api/v1/account-links/my')
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to load account links')
+      }
+      const data = await response.json()
+      setAccountLinks(data.links || [])
+    } catch (err) {
+      setLinkError(err.message)
+      console.error('Failed to load account links:', err)
+    } finally {
+      setAccountLinksLoading(false)
+    }
+  }
+
+  const createAccountLink = async () => {
+    if (!newLocalUserId.trim()) {
+      setLinkError('Local user ID is required')
+      return
+    }
+    
+    setAccountLinksLoading(true)
+    setLinkError(null)
+    try {
+      const response = await apiPost('/api/v1/account-links/create', {
+        local_user_id: newLocalUserId.trim(),
+        notes: newLinkNotes.trim(),
+        auto_verify: true,
+      })
+      
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to create account link')
+      }
+      
+      setShowLinkModal(false)
+      setNewLocalUserId('')
+      setNewLinkNotes('')
+      await loadAccountLinks()
+      alert('Account link created successfully')
+    } catch (err) {
+      setLinkError(err.message)
+      console.error('Failed to create account link:', err)
+    } finally {
+      setAccountLinksLoading(false)
+    }
+  }
+
+  const deleteAccountLink = async (linkId, localUserId, auth0UserId) => {
+    if (!window.confirm(`Are you sure you want to delete the link between ${localUserId} and ${auth0UserId}?`)) {
+      return
+    }
+    
+    setAccountLinksLoading(true)
+    setLinkError(null)
+    try {
+      const response = await apiPost('/api/v1/account-links/delete', { link_id: linkId })
+      
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to delete account link')
+      }
+      
+      await loadAccountLinks()
+      alert('Account link deleted successfully')
+    } catch (err) {
+      setLinkError(err.message)
+      console.error('Failed to delete account link:', err)
+    } finally {
+      setAccountLinksLoading(false)
+    }
+  }
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'Never'
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
   const saveAgentConfig = async () => {
     setAgentLoading(true)
     try {
       const headers = {
         'Content-Type': 'application/json',
       }
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       // Only send API key if it was changed
       // If changed and empty, send empty string to clear it
@@ -444,14 +552,15 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
     
     setRestarting(true)
     console.log('[RestartService] User confirmed, making request...')
-    console.log('[RestartService] Auth token present:', !!window.authToken)
+    console.log('[RestartService] Auth token present:', !!getAuthToken())
     
     try {
       const headers = {
         'Content-Type': 'application/json',
       }
-      if (window.authToken) {
-        headers['Authorization'] = `Bearer ${window.authToken}`
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       
       console.log('[RestartService] Sending POST to /api/v1/services/restart')
@@ -482,8 +591,9 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
   }
 
   return (
-    <div className="panel model-settings-panel">
-      <h2>Model Settings</h2>
+    <div className="panel model-settings-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <h2 style={{ flexShrink: 0 }}>Model Settings</h2>
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minHeight: 0 }}>
 
       <div className="settings-section">
         <h3>AI Model</h3>
@@ -515,13 +625,45 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
               disabled={loading || modelLoading}
             >
               <option value="">Select a model...</option>
-              {availableModels.map((model, index) => (
-                <option key={model?.name || index} value={model?.name || ''}>
-                  {currentProvider === 'openrouter' 
-                    ? `${model?.full_name || model?.name || 'Unknown'}${model?.description ? ` - ${model.description}` : ''}`
-                    : `${model?.name || 'Unknown'} (${model?.full_name || 'Unknown'})`}
-                </option>
-              ))}
+              {currentProvider === 'openrouter' ? (
+                // Group OpenRouter models by provider/company
+                (() => {
+                  // Group models by provider
+                  const groupedModels = {}
+                  availableModels.forEach(model => {
+                    const provider = model?.provider || 'Other'
+                    if (!groupedModels[provider]) {
+                      groupedModels[provider] = []
+                    }
+                    groupedModels[provider].push(model)
+                  })
+                  
+                  // Sort providers: OpenAI first, then alphabetically
+                  const sortedProviders = Object.keys(groupedModels).sort((a, b) => {
+                    if (a === 'OpenAI') return -1
+                    if (b === 'OpenAI') return 1
+                    return a.localeCompare(b)
+                  })
+                  
+                  // Render with optgroups
+                  return sortedProviders.map(provider => (
+                    <optgroup key={provider} label={provider}>
+                      {groupedModels[provider].map((model, index) => (
+                        <option key={model?.name || index} value={model?.name || ''}>
+                          {model?.full_name || model?.name || 'Unknown'}{model?.description ? ` - ${model.description}` : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))
+                })()
+              ) : (
+                // Regular list for Ollama models
+                availableModels.map((model, index) => (
+                  <option key={model?.name || index} value={model?.name || ''}>
+                    {model?.name || 'Unknown'} ({model?.full_name || 'Unknown'})
+                  </option>
+                ))
+              )}
             </select>
           </label>
 
@@ -776,6 +918,254 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
         </div>
       </div>
 
+      <div className="settings-section">
+        <h3>Account Linking</h3>
+        <p className="section-description">
+          Link local user accounts (e.g., Telegram users, manually created IDs) to your Auth0 account.
+          This allows data from both accounts to be merged and accessed together.
+        </p>
+
+        {linkError && (
+          <div className="error-banner" style={{ marginBottom: '1rem', padding: '0.75rem', background: 'rgba(255, 0, 0, 0.1)', borderRadius: '4px', color: '#ff6b6b' }}>
+            <span>{linkError}</span>
+            <button onClick={() => setLinkError(null)} style={{ marginLeft: '0.5rem', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>✕</button>
+          </div>
+        )}
+
+        <div className="settings-row" style={{ marginBottom: '1rem' }}>
+          <button
+            onClick={() => setShowLinkModal(true)}
+            className="primary-btn"
+            disabled={accountLinksLoading}
+            type="button"
+          >
+            + Create Link
+          </button>
+          <button
+            onClick={loadAccountLinks}
+            className="secondary-btn"
+            disabled={accountLinksLoading}
+            type="button"
+          >
+            {accountLinksLoading ? 'Loading...' : '🔄 Refresh'}
+          </button>
+        </div>
+
+        {accountLinksLoading && accountLinks.length === 0 ? (
+          <div className="loading-state">Loading account links...</div>
+        ) : accountLinks.length === 0 ? (
+          <div className="empty-state" style={{ padding: '2rem', textAlign: 'center', color: 'rgba(255, 255, 255, 0.5)' }}>
+            No account links found. Create a link to connect a local user ID to your Auth0 account.
+          </div>
+        ) : (
+          <div className="account-links-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {accountLinks.map((link) => (
+              <div
+                key={link.id}
+                className="account-link-card"
+                style={{
+                  padding: '1rem',
+                  background: link.verified ? 'rgba(0, 255, 0, 0.05)' : 'rgba(255, 255, 0, 0.05)',
+                  border: `1px solid ${link.verified ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 0, 0.2)'}`,
+                  borderRadius: '8px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '1.2em' }}>🔗</span>
+                    <span style={{ fontWeight: 'bold' }}>{link.local_user_id}</span>
+                    <span>→</span>
+                    <span style={{ color: 'rgba(255, 255, 255, 0.7)' }}>{link.auth0_user_id}</span>
+                  </div>
+                  <div style={{ fontSize: '0.85em', color: 'rgba(255, 255, 255, 0.6)', display: 'flex', gap: '1rem' }}>
+                    <span className={link.verified ? 'verified' : 'unverified'}>
+                      {link.verified ? '✓ Verified' : '○ Unverified'}
+                    </span>
+                    <span>Created: {formatDate(link.created_at)}</span>
+                    {link.notes && <span title={link.notes}>📝 {link.notes.substring(0, 30)}{link.notes.length > 30 ? '...' : ''}</span>}
+                  </div>
+                </div>
+                <button
+                  onClick={() => deleteAccountLink(link.id, link.local_user_id, link.auth0_user_id)}
+                  className="action-btn unlink"
+                  disabled={accountLinksLoading}
+                  type="button"
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: 'rgba(255, 0, 0, 0.2)',
+                    border: '1px solid rgba(255, 0, 0, 0.3)',
+                    borderRadius: '4px',
+                    color: '#ff6b6b',
+                    cursor: accountLinksLoading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Account Link Modal */}
+      {showLinkModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setShowLinkModal(false)
+            setNewLocalUserId('')
+            setNewLinkNotes('')
+            setLinkError(null)
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'rgba(26, 26, 31, 0.98)',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '90%',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            }}
+          >
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0 }}>Create Account Link</h3>
+              <button
+                onClick={() => {
+                  setShowLinkModal(false)
+                  setNewLocalUserId('')
+                  setNewLinkNotes('')
+                  setLinkError(null)
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  cursor: 'pointer',
+                  fontSize: '1.5em',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: '1.5rem', color: 'rgba(255, 255, 255, 0.7)' }}>
+                Link a local user ID to your Auth0 account. This allows data from both accounts
+                to be merged and accessed together.
+              </p>
+
+              {linkError && (
+                <div className="error-banner" style={{ marginBottom: '1rem', padding: '0.75rem', background: 'rgba(255, 0, 0, 0.1)', borderRadius: '4px', color: '#ff6b6b' }}>
+                  {linkError}
+                </div>
+              )}
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label htmlFor="local-user-id" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                  Local User ID *
+                </label>
+                <input
+                  id="local-user-id"
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g., telegram_user_123456789, local_user_abc"
+                  value={newLocalUserId}
+                  onChange={(e) => setNewLocalUserId(e.target.value)}
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '4px',
+                    color: 'white',
+                  }}
+                />
+                <small style={{ display: 'block', marginTop: '0.25rem', color: 'rgba(255, 255, 255, 0.5)' }}>
+                  The local user ID to link (required)
+                </small>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label htmlFor="link-notes" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                  Notes (optional)
+                </label>
+                <input
+                  id="link-notes"
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g., Linked from Telegram"
+                  value={newLinkNotes}
+                  onChange={(e) => setNewLinkNotes(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '4px',
+                    color: 'white',
+                  }}
+                />
+              </div>
+
+              <div className="modal-actions" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                <button
+                  className="cancel-btn"
+                  onClick={() => {
+                    setShowLinkModal(false)
+                    setNewLocalUserId('')
+                    setNewLinkNotes('')
+                    setLinkError(null)
+                  }}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '4px',
+                    color: 'white',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="confirm-btn"
+                  onClick={createAccountLink}
+                  disabled={!newLocalUserId.trim() || accountLinksLoading}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: accountLinksLoading || !newLocalUserId.trim() ? 'rgba(255, 0, 0, 0.3)' : 'rgba(255, 0, 0, 0.5)',
+                    border: '1px solid rgba(255, 0, 0, 0.3)',
+                    borderRadius: '4px',
+                    color: 'white',
+                    cursor: accountLinksLoading || !newLocalUserId.trim() ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {accountLinksLoading ? 'Creating...' : 'Create Link'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="settings-section danger-section">
         <h3>Service Controls</h3>
         <p className="section-description">
@@ -800,6 +1190,7 @@ function ModelSettings({ currentModel, onModelChange, currentProvider: propProvi
           </button>
         </div>
         <small className="danger-note">These actions will briefly interrupt the respective service.</small>
+      </div>
       </div>
     </div>
   )

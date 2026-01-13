@@ -1,8 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Auth0Provider } from "@auth0/auth0-react";
+import { BrowserRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App.jsx";
-import "./styles/index.css";
+import "virtual:uno.css";
+import "./styles/uno.css";
 
 // Capture frontend console logs so they can be viewed inside the app (Logs tab).
 (() => {
@@ -116,16 +119,31 @@ const authorizationParams = {
 
 // Don't add audience - this will make tokens be ID tokens instead
 
+// Create React Query client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 30000, // 30 seconds
+    },
+  },
+});
+
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <Auth0Provider
-      domain={domain}
-      clientId={clientId}
-      authorizationParams={authorizationParams}
-      useRefreshTokens={true}
-      cacheLocation="localstorage"
-    >
-      <App />
-    </Auth0Provider>
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <Auth0Provider
+          domain={domain}
+          clientId={clientId}
+          authorizationParams={authorizationParams}
+          useRefreshTokens={true}
+          cacheLocation="localstorage"
+        >
+          <App />
+        </Auth0Provider>
+      </QueryClientProvider>
+    </BrowserRouter>
   </React.StrictMode>
 );

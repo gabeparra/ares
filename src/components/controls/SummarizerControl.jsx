@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import './SummarizerControl.css'
 
 function SummarizerControl({ ws }) {
   const [isRunning, setIsRunning] = useState(true)
