@@ -107,9 +107,9 @@ function ConversationList({ onSelectSession, selectedSessionId }) {
   }
 
   return (
-    <div className="flex flex-col h-full p-5 gap-4">
+    <div className="panel flex flex-col h-full w-full min-h-0 gap-4">
       {/* Header */}
-      <div className="flex justify-between items-center pb-4 border-b border-white/10">
+      <div className="flex justify-between items-center pb-4 border-b border-white/10 flex-shrink-0">
         <h3 className="m-0 text-lg font-semibold bg-gradient-to-r from-white to-red-200/90 bg-clip-text text-transparent">
           Conversation Sessions
         </h3>
@@ -134,7 +134,7 @@ function ConversationList({ onSelectSession, selectedSessionId }) {
       </div>
 
       {/* Sessions List */}
-      <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2">
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-2">
         {loading ? (
           <div className="text-center py-12 text-white/50">Loading sessions...</div>
         ) : filteredSessions.length === 0 ? (

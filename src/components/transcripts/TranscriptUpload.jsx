@@ -195,40 +195,47 @@ When answering questions:
   }
 
   return (
-    <div className="panel transcript-upload-panel">
-      <h2>📄 Meeting Transcripts</h2>
+    <div className="panel flex flex-col gap-5">
+      <h2 className="m-0 mb-5 text-xl font-semibold bg-gradient-to-r from-white to-red-accent bg-clip-text text-transparent flex-shrink-0">
+        📄 Meeting Transcripts
+      </h2>
       
-      <div className="transcript-container">
+      <div className="flex flex-col gap-5 flex-1 min-h-0 overflow-hidden">
         {/* Upload Section */}
-        <div className="transcript-section upload-section">
-          <h3>📤 Upload & Summary</h3>
+        <div className="flex flex-col bg-white-opacity-3 border border-white-opacity-8 rounded-2xl p-5 flex-shrink-0">
+          <h3 className="m-0 mb-4 text-lg font-semibold text-white-opacity-92 flex-shrink-0">
+            📤 Upload & Summary
+          </h3>
           
-          <div className="file-input-wrapper">
+          <div className="relative mb-4">
             <input
               type="file"
               id="transcript-file"
               accept=".txt,.md,.doc,.docx"
               onChange={handleFileSelect}
-              className="file-input"
+              className="absolute w-0 h-0 opacity-0 overflow-hidden"
             />
-            <label htmlFor="transcript-file" className="file-label">
+            <label
+              htmlFor="transcript-file"
+              className="block px-4 py-3 bg-white-opacity-6 border border-white-opacity-12 rounded-lg text-white-opacity-80 text-sm cursor-pointer transition-all duration-250 text-center hover:bg-white-opacity-10 hover:border-white-opacity-20"
+            >
               {file ? file.name : 'Select Transcript File'}
             </label>
           </div>
 
           {file && (
-            <div className="file-actions">
+            <div className="flex gap-2.5 mb-4">
               <button
                 onClick={handleUpload}
                 disabled={isProcessing}
-                className="upload-button"
+                className="flex-1 px-5 py-3 bg-gradient-to-br from-red-bg-6 via-red-bg-5 to-red-bg-6 border-none rounded-lg text-white text-sm font-medium cursor-pointer transition-all duration-250 hover:from-red-bg-5 hover:to-red-bg-6 hover:-translate-y-0.5 hover:shadow-button-hover disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               >
                 {isProcessing ? 'Processing...' : 'Generate Summary'}
               </button>
               <button
                 onClick={handleClear}
                 disabled={isProcessing}
-                className="clear-button"
+                className="flex-1 px-5 py-3 bg-white-opacity-6 border border-white-opacity-12 rounded-lg text-white-opacity-80 text-sm font-medium cursor-pointer transition-all duration-250 hover:bg-white-opacity-10 hover:border-white-opacity-20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Clear
               </button>
@@ -236,22 +243,22 @@ When answering questions:
           )}
 
           {error && (
-            <div className="error-message">
+            <div className="px-4 py-3 bg-red-500/15 border border-red-500/30 rounded-lg text-red-300 text-sm mb-4">
               ⚠️ {error}
             </div>
           )}
 
           {isProcessing && (
-            <div className="processing-indicator">
-              <div className="spinner"></div>
+            <div className="flex items-center gap-3 px-3 py-3 bg-white-opacity-3 rounded-lg text-white-opacity-70 text-sm mb-4">
+              <div className="w-5 h-5 border-2 border-white-opacity-20 border-t-red-500/80 rounded-full animate-spin"></div>
               <span>Analyzing transcript...</span>
             </div>
           )}
 
           {summary && (
-            <div className="summary-section">
-              <h4>Summary</h4>
-              <div className="summary-content">
+            <div className="mt-4 pt-4 border-t border-white-opacity-10">
+              <h4 className="m-0 mb-3 text-base font-semibold text-white-opacity-92">Summary</h4>
+              <div className="p-4 bg-black/20 rounded-lg text-white-opacity-85 leading-relaxed whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto">
                 {summary}
               </div>
             </div>
@@ -259,13 +266,15 @@ When answering questions:
         </div>
 
         {/* Chat Section */}
-        <div className="transcript-section chat-section">
-          <h3>💬 Chat with AI</h3>
+        <div className="flex flex-col bg-white-opacity-3 border border-white-opacity-8 rounded-2xl p-5 flex-1 min-h-0 overflow-hidden">
+          <h3 className="m-0 mb-4 text-lg font-semibold text-white-opacity-92 flex-shrink-0">
+            💬 Chat with AI
+          </h3>
           
-          <div className="chat-messages">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 py-3 mb-4 pr-1">
             {chatMessages.length === 0 && (
-              <div className="chat-empty">
-                <p>
+              <div className="empty-state">
+                <p className="m-0">
                   {transcriptContent 
                     ? 'Transcript loaded! Ask me questions about the meeting, request specific information, or discuss the content.'
                     : 'Upload a transcript file to start chatting about it. Once uploaded, I\'ll be able to answer questions about the meeting content.'}
@@ -274,14 +283,23 @@ When answering questions:
             )}
             
             {chatMessages.map((msg, idx) => (
-              <div key={idx} className={`chat-message ${msg.type}`}>
-                <div className="chat-message-content">
+              <div
+                key={idx}
+                className={`mb-4 px-5 py-4 rounded-2xl animate-slide-in-up transition-all duration-200 ${
+                  msg.type === 'user'
+                    ? 'bg-gradient-to-br from-red-bg-4 to-red-bg-3 border border-red-border-2 ml-6'
+                    : msg.type === 'error'
+                    ? 'bg-red-500/15 border border-red-500/30'
+                    : 'bg-white-opacity-4 border border-white-opacity-10 mr-6'
+                }`}
+              >
+                <div className="leading-relaxed text-white-opacity-90 break-words">
                   {msg.type === 'user' ? (
-                    <div className="user-message">{msg.content}</div>
+                    <div>{msg.content}</div>
                   ) : msg.type === 'error' ? (
-                    <div className="error-message">⚠️ {msg.content}</div>
+                    <div className="text-red-300">⚠️ {msg.content}</div>
                   ) : (
-                    <div className="assistant-message">
+                    <div>
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   )}
@@ -290,13 +308,11 @@ When answering questions:
             ))}
             
             {isChatTyping && (
-              <div className="chat-message assistant">
-                <div className="chat-message-content">
-                  <div className="typing-indicator">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
+              <div className="mb-4 px-5 py-4 rounded-2xl bg-white-opacity-4 border border-white-opacity-10 mr-6 animate-slide-in-up">
+                <div className="flex gap-1.5 py-2">
+                  <span className="w-2 h-2 bg-red-500/60 rounded-full animate-typing"></span>
+                  <span className="w-2 h-2 bg-red-500/60 rounded-full animate-typing" style={{ animationDelay: '0.2s' }}></span>
+                  <span className="w-2 h-2 bg-red-500/60 rounded-full animate-typing" style={{ animationDelay: '0.4s' }}></span>
                 </div>
               </div>
             )}
@@ -304,19 +320,19 @@ When answering questions:
             <div ref={chatMessagesEndRef} />
           </div>
 
-          <form onSubmit={handleChatSubmit} className="chat-input-form">
+          <form onSubmit={handleChatSubmit} className="flex gap-2.5 flex-shrink-0 pt-4 border-t border-white-opacity-10">
             <input
               type="text"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               placeholder="Ask about transcripts, request summaries, or discuss meetings..."
-              className="chat-input"
+              className="flex-1 min-w-0 px-4 py-3.5 bg-white-opacity-6 border border-white-opacity-12 rounded-2xl text-white text-base outline-none transition-all duration-250 placeholder:text-white-opacity-40 focus:border-red-border-4 focus:bg-white-opacity-8 focus:shadow-[0_0_0_4px_rgba(255,0,0,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isChatTyping}
             />
             <button
               type="submit"
               disabled={!chatInput.trim() || isChatTyping}
-              className="chat-send-button"
+              className="px-7 py-3.5 bg-gradient-to-br from-red-bg-6 via-red-bg-5 to-red-bg-6 border-none rounded-2xl text-white font-semibold text-sm cursor-pointer transition-all duration-250 flex-shrink-0 hover:from-red-bg-5 hover:to-red-bg-6 hover:-translate-y-0.5 hover:shadow-button-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             >
               Send
             </button>

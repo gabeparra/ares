@@ -614,12 +614,10 @@ function MainInterface({ isDevAdmin = false, devUser = null }) {
               } />
               <Route path="/sessions" element={
                 <TabPanel active={activeTab === "sessions"} id="sessions">
-                  <div className="panel h-full min-h-0">
-                    <ConversationList
-                      onSelectSession={handleSessionSelect}
-                      selectedSessionId={selectedSessionId}
-                    />
-                  </div>
+                  <ConversationList
+                    onSelectSession={handleSessionSelect}
+                    selectedSessionId={selectedSessionId}
+                  />
                 </TabPanel>
               } />
               <Route path="/users" element={
