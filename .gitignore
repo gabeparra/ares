@@ -66,12 +66,31 @@ coverage.xml
 playwright-report/
 test-results/
 
-# Database
+# Database - NEVER commit database files
 *.db
 *.sqlite
 *.sqlite3
+db.sqlite3
 data/*.sqlite3
+data/db.sqlite3
+
+# ChromaDB / Vector stores - contains conversation embeddings
 data/chromadb/
+chromadb/
+*.chroma
+chroma.sqlite3
+
+# Backups and dumps
+*.sql
+*.dump
+*.bak
+
+# Training data - private/personal
+training/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
 
 # Logs
 *.log
@@ -134,3 +153,9 @@ staticfiles/
 
 # Internal documentation (not for git)
 internaldocuments/
+
+# Data directory (runtime data, not for git)
+data/
+
+# PID files
+*.pid

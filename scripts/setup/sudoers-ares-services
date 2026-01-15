@@ -1,0 +1,26 @@
+# Sudoers configuration for ARES service management
+# This allows the 'gabe' user to restart specific ARES services without password
+# 
+# To install:
+#   sudo cp scripts/sudoers-ares-services /etc/sudoers.d/ares-services
+#   sudo chmod 0440 /etc/sudoers.d/ares-services
+#   sudo visudo -c  # Verify syntax
+#
+# Security: Only allows restart/start/stop/status for specific services
+
+# Allow restart, start, stop, and status for ARES services
+gabe ALL=(ALL) NOPASSWD: /bin/systemctl restart ares-backend.service
+gabe ALL=(ALL) NOPASSWD: /bin/systemctl restart ares-discord-bot.service
+gabe ALL=(ALL) NOPASSWD: /bin/systemctl restart ares-frontend-dev.service
+gabe ALL=(ALL) NOPASSWD: /bin/systemctl start ares-backend.service
+gabe ALL=(ALL) NOPASSWD: /bin/systemctl start ares-discord-bot.service
+gabe ALL=(ALL) NOPASSWD: /bin/systemctl start ares-frontend-dev.service
+gabe ALL=(ALL) NOPASSWD: /bin/systemctl stop ares-backend.service
+gabe ALL=(ALL) NOPASSWD: /bin/systemctl stop ares-discord-bot.service
+gabe ALL=(ALL) NOPASSWD: /bin/systemctl stop ares-frontend-dev.service
+gabe ALL=(ALL) NOPASSWD: /bin/systemctl status ares-backend.service
+gabe ALL=(ALL) NOPASSWD: /bin/systemctl status ares-discord-bot.service
+gabe ALL=(ALL) NOPASSWD: /bin/systemctl status ares-frontend-dev.service
+gabe ALL=(ALL) NOPASSWD: /bin/systemctl reload ares-backend.service
+gabe ALL=(ALL) NOPASSWD: /bin/systemctl reload ares-frontend-dev.service
+
