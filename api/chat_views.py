@@ -254,10 +254,18 @@ def chat(request):
                         # Don't fail the chat request if extraction fails
                         print(f"[WARNING] Memory extraction failed: {e}")
 
+        # Ensure provider is correctly set - normalize to 'local' or 'openrouter'
+        # This prevents any confusion if model name contains 'openai'
+        normalized_provider = used_provider
+        if normalized_provider not in ['local', 'openrouter']:
+            # If provider is somehow invalid, default based on current setting
+            provider_setting = _get_setting("llm_provider") or os.environ.get("LLM_PROVIDER", "local")
+            normalized_provider = provider_setting if provider_setting in ['local', 'openrouter'] else 'local'
+        
         return JsonResponse({
             'response': assistant_text,
             'model': model_name,
-            'provider': used_provider,
+            'provider': normalized_provider,
             'session_id': session_id,
         })
     
