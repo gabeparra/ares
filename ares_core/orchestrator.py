@@ -114,37 +114,48 @@ class ModelRouter:
         # Override with prefer_local if specified
         if prefer_local and self.local_available:
             provider = "local"
-        
+
         # Routing logic
         if provider == "local":
             if self.local_available:
                 logger.info("Routing to local LLM")
-                return "local", {"model": getattr(settings, 'OLLAMA_MODEL', 'mistral')}
+                return "local", {"model": self._get_local_model()}
             elif self.cloud_available:
                 logger.warning("Local LLM unavailable, falling back to cloud")
                 return "openrouter", self._get_cloud_config()
             else:
                 logger.error("No LLM provider available")
                 raise RuntimeError("No LLM provider available")
-        
+
         elif provider == "openrouter":
             if self.cloud_available:
                 logger.info("Routing to cloud LLM (OpenRouter)")
                 return "openrouter", self._get_cloud_config()
             elif self.local_available:
                 logger.warning("Cloud LLM unavailable, falling back to local")
-                return "local", {"model": getattr(settings, 'OLLAMA_MODEL', 'mistral')}
+                return "local", {"model": self._get_local_model()}
             else:
                 logger.error("No LLM provider available")
                 raise RuntimeError("No LLM provider available")
-        
+
         # Default fallback
         if self.local_available:
-            return "local", {"model": getattr(settings, 'OLLAMA_MODEL', 'mistral')}
+            return "local", {"model": self._get_local_model()}
         elif self.cloud_available:
             return "openrouter", self._get_cloud_config()
         else:
             raise RuntimeError("No LLM provider available")
+
+    def _get_local_model(self) -> str:
+        """Get local model from database or fall back to env var."""
+        try:
+            from api.utils import _get_setting
+            db_model = _get_setting('ollama_model')
+            if db_model:
+                return db_model
+        except Exception:
+            pass
+        return getattr(settings, 'OLLAMA_MODEL', 'mistral')
     
     def _get_cloud_config(self) -> Dict:
         """Get cloud model configuration."""

@@ -10,6 +10,7 @@ import DemoChat from "./components/chat/DemoChat";
 import ConversationList from "./components/conversations/ConversationList";
 import ConnectionStatus from "./components/controls/ConnectionStatus";
 import TelegramStatus from "./components/controls/TelegramStatus";
+import DiscordStatusCompact from "./components/controls/DiscordStatusCompact";
 import ProviderSelector from "./components/controls/ProviderSelector";
 import TranscriptUpload from "./components/transcripts/TranscriptUpload";
 import ModelSettings from "./components/settings/ModelSettings";
@@ -558,6 +559,7 @@ function MainInterface({ isDevAdmin = false, devUser = null }) {
           <div className="flex items-center gap-8px flex-shrink-0 flex-nowrap">
             <ConnectionStatus />
             <TelegramStatus />
+            <DiscordStatusCompact />
             {isDevAdmin ? (
               <div className="flex items-center gap-2 flex-shrink-0">
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/20 border border-amber-500/40 rounded-xl flex-shrink-0">

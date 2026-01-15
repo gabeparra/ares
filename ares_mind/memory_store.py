@@ -267,7 +267,25 @@ class MemoryStore:
             "calendar": None,
             "active_task": None,
             "context": None,
+            "model": None,
+            "provider": None,
         }
+
+        # Get current model information
+        try:
+            from api.utils import _get_setting
+            from django.conf import settings
+
+            provider = _get_setting('llm_provider') or 'local'
+            if provider == 'local':
+                model = _get_setting('ollama_model') or getattr(settings, 'OLLAMA_MODEL', 'mistral')
+            else:
+                model = _get_setting('openrouter_model') or getattr(settings, 'OPENROUTER_MODEL', 'openai/gpt-4o-mini')
+
+            working["model"] = model
+            working["provider"] = provider
+        except Exception as e:
+            logger.warning(f"Failed to get model info for working memory: {e}")
         
         # Get calendar snapshot
         try:
@@ -471,6 +489,10 @@ class MemoryStore:
         sections.append(f"- Date: {memory['working']['date']}")
         sections.append(f"- Time: {memory['working']['time']}")
         sections.append(f"- Day: {memory['working']['day_of_week']}")
+        if memory["working"]["model"]:
+            sections.append(f"- Your current model: {memory['working']['model']}")
+        if memory["working"]["provider"]:
+            sections.append(f"- Running on: {memory['working']['provider']}")
         if memory["working"]["active_task"]:
             sections.append(f"- Active Task: {memory['working']['active_task']}")
         if memory["working"]["calendar"]:

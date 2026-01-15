@@ -4,6 +4,7 @@ from django.views.decorators.http import require_http_methods
 from django.conf import settings
 import json
 import httpx
+from .utils import _get_setting, _set_setting
 
 
 @require_http_methods(["GET", "POST"])
@@ -30,8 +31,9 @@ def models_list(request):
                 for m in ollama_models
             ]
             
-            current_model = getattr(settings, 'OLLAMA_MODEL', 'mistral')
-            
+            # Check database first, then fall back to env var
+            current_model = _get_setting('ollama_model') or getattr(settings, 'OLLAMA_MODEL', 'mistral')
+
             return JsonResponse({
                 'models': models,
                 'current_model': current_model,
@@ -39,27 +41,30 @@ def models_list(request):
             })
         
         except httpx.ConnectError:
+            current_model = _get_setting('ollama_model') or getattr(settings, 'OLLAMA_MODEL', 'mistral')
             return JsonResponse({
                 'error': f'Cannot connect to Ollama at {settings.OLLAMA_BASE_URL}. Make sure Ollama is running and accessible via Tailscale.',
                 'models': [],
-                'current_model': getattr(settings, 'OLLAMA_MODEL', 'mistral'),
+                'current_model': current_model,
                 'model_loaded': False,
             }, status=503)
         except httpx.TimeoutException:
+            current_model = _get_setting('ollama_model') or getattr(settings, 'OLLAMA_MODEL', 'mistral')
             return JsonResponse({
                 'error': f'Timeout connecting to Ollama at {settings.OLLAMA_BASE_URL}',
                 'models': [],
-                'current_model': getattr(settings, 'OLLAMA_MODEL', 'mistral'),
+                'current_model': current_model,
                 'model_loaded': False,
             }, status=503)
         except Exception as e:
             error_msg = str(e)
             if hasattr(e, 'response') and hasattr(e.response, 'status_code'):
                 error_msg = f"HTTP {e.response.status_code}: {error_msg}"
+            current_model = _get_setting('ollama_model') or getattr(settings, 'OLLAMA_MODEL', 'mistral')
             return JsonResponse({
                 'error': f'Error fetching models from Ollama: {error_msg}',
                 'models': [],
-                'current_model': getattr(settings, 'OLLAMA_MODEL', 'mistral'),
+                'current_model': current_model,
                 'model_loaded': False,
             }, status=500)
     
@@ -87,10 +92,11 @@ def models_list(request):
                     'error': f'Model "{model}" not found in Ollama. Available models: {", ".join(model_names)}'
                 }, status=404)
             
-            # Update the model setting (note: this only affects the current process)
-            # For persistent changes, update the environment variable
+            # Save to database for persistence across restarts
+            _set_setting('ollama_model', model)
+            # Also update in-memory for current process
             settings.OLLAMA_MODEL = model
-            
+
             return JsonResponse({
                 'success': True,
                 'model': model,
